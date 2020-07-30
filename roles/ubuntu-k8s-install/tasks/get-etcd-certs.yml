@@ -1,0 +1,21 @@
+---
+- name: Fetch /etc/kubernetes/pki/etcd/ca.crt from etcd host
+  become_method: sudo
+  become: true
+  fetch:
+    src: /etc/kubernetes/pki/etcd/ca.crt
+    dest: /tmp/k8s_etcd/
+
+- name: Fetch /etc/kubernetes/pki/apiserver-etcd-client.crt from etcd host
+  become_method: sudo
+  become: true
+  fetch:
+    src: /etc/kubernetes/pki/apiserver-etcd-client.crt
+    dest: /tmp/k8s_etcd/
+
+- name: Fetch /etc/kubernetes/pki/apiserver-etcd-client.key from etcd host
+  become_method: sudo
+  become: true
+  fetch:
+    src: /etc/kubernetes/pki/apiserver-etcd-client.key
+    dest: /tmp/k8s_etcd/

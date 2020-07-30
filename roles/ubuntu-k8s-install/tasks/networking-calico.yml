@@ -1,0 +1,51 @@
+---
+- name: Load etcd pub key
+  slurp:
+    src: /etc/kubernetes/pki/apiserver-etcd-client.key
+  register: etcd_key
+
+- name: Load etcd cert
+  slurp:
+    src: /etc/kubernetes/pki/apiserver-etcd-client.crt
+  register: etcd_cert
+
+- name: Load etcd ca
+  slurp:
+    src: /etc/kubernetes/pki/etcd/ca.crt
+  register: etcd_ca
+
+- name: Verify config directory /ansible_generated_configs
+  become_method: sudo
+  become: true
+  file:
+    path: /ansible_generated_configs
+    state: directory
+
+- name: Create /ansible_generated_configs/networking-calico.yaml
+  become: true
+  become_method: sudo
+  vars:
+    etcd_key_data: "{{etcd_key.content}}"
+    etcd_cert_data: "{{etcd_cert.content}}"
+    etcd_ca_data: "{{etcd_ca.content}}"
+  template:
+    src: networking-calico-yaml.j2
+    dest: /ansible_generated_configs/networking-calico.yaml
+    mode: 0644
+
+- name: Fetch generated /ansible_generated_configs/networking-calico.yaml
+  become_method: sudo
+  become: true
+  fetch:
+    src: /ansible_generated_configs/networking-calico.yaml
+    dest: "{{playbook_dir}}/generated"
+
+- name: Apply Calico as network provider
+  shell: kubectl apply -f /ansible_generated_configs/networking-calico.yaml
+
+- name: Clean up temp files in /ansible_generated_configs
+  become_method: sudo
+  become: true
+  file:
+    path: /ansible_generated_configs
+    state: absent

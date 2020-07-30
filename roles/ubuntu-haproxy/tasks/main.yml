@@ -1,0 +1,48 @@
+---
+- name: Install HAProxy
+  become: true
+  become_method: sudo
+  apt:
+    pkg:
+      - haproxy
+    state: latest
+    force_apt_get: true
+    update_cache: yes
+
+- name: Copy cert generation script to host
+  when: haproxy_tls_enable
+  become: true
+  become_method: sudo
+  template:
+    src: generate_certs.j2
+    dest: /tmp/generate_certs.sh
+    mode: '0755'
+
+- name: Run cert generation script
+  when: haproxy_tls_enable
+  become: true
+  become_method: sudo
+  shell: /tmp/generate_certs.sh
+
+- name: Create HAProxy config file
+  become: true
+  become_method: sudo
+  template:
+    src: haproxy.j2
+    dest: /etc/haproxy/haproxy.cfg
+    mode: 0775
+
+- name: Fetch generated HAProxy config file
+  become_method: sudo
+  become: true
+  fetch:
+    src: /etc/haproxy/haproxy.cfg
+    dest: "{{playbook_dir}}/generated"
+
+- name: Restart HAProxy service
+  become: true
+  become_method: sudo
+  systemd:
+    name: haproxy
+    enabled: yes
+    state: restarted

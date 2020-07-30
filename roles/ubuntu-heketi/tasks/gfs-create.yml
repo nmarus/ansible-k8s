@@ -1,0 +1,28 @@
+---
+- name: Get status of Gluster volume "{{glusterfs_heketi_gfs_volume}}"
+  become: true
+  become_method: sudo
+  no_log: true
+  ignore_errors: true
+  shell: gluster volume info {{glusterfs_heketi_gfs_volume}}
+  register: volume_status
+
+- name: Create Gluster Volume "{{glusterfs_heketi_gfs_volume}}"
+  when: volume_status.rc != 0
+  become: true
+  become_method: sudo
+  shell: |
+    gluster volume create {{glusterfs_heketi_gfs_volume}} \
+      replica {{glusterfs_nodes | list | length}} \
+      {% for node in glusterfs_nodes %}{{node}}:/bricks/{{glusterfs_heketi_xfs_device|basename}}/{{glusterfs_heketi_gfs_volume}} {% endfor %}
+
+- name: Secure Gluster Volume "{{glusterfs_heketi_gfs_volume}}"
+  become: true
+  become_method: sudo
+  shell: gluster volume set {{glusterfs_heketi_gfs_volume}} auth.allow {{(glusterfs_nodes + glusterfs_heketi_auth_allow) | list | unique | join(',')}}
+
+- name: Start Gluster Volume "{{glusterfs_heketi_gfs_volume}}"
+  when: volume_status.rc != 0
+  become: true
+  become_method: sudo
+  shell: gluster volume start {{glusterfs_heketi_gfs_volume}}

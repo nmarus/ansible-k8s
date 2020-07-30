@@ -1,0 +1,16 @@
+---
+- name: Verify remote temp directory /tmp/k8s_etcd/{{this_etcd_host.address}} exists
+  become: true
+  become_method: sudo
+  file:
+    path: "/tmp/k8s_etcd/{{this_etcd_host.address}}"
+    state: directory
+    mode: 0755
+
+- name: Create /tmp/k8s_etcd/{{this_etcd_host.address}}/kubeadmcfg.yaml
+  become: true
+  become_method: sudo
+  template:
+    src: kubeadmcfg-yaml.j2
+    dest: "/tmp/k8s_etcd/{{this_etcd_host.address}}/kubeadmcfg.yaml"
+    mode: 0640

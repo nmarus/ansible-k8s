@@ -1,0 +1,22 @@
+---
+haproxy_app_domain_name: domain.local
+
+haproxy_stats_enable: true
+haproxy_stats_user: super
+haproxy_stats_password: secret
+haproxy_stats_uri: /stats
+
+haproxy_tls_enable: true
+
+haproxy_frontend_tcp_port: 80
+haproxy_frontend_tls_port: 443
+haproxy_frontend_mode: http
+
+haproxy_redirect_http: false
+
+haproxy_backend_mode: http
+haproxy_backend_port: 80
+haproxy_backend_balance: source
+haproxy_backend_check: true
+haproxy_backend_name: service
+haproxy_backend_servers: []

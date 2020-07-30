@@ -1,0 +1,17 @@
+---
+apiVersion: "kubeadm.k8s.io/v1beta2"
+kind: ClusterConfiguration
+etcd:
+  local:
+    serverCertSANs:
+      - "{{this_etcd_host.address}}"
+    peerCertSANs:
+      - "{{this_etcd_host.address}}"
+    extraArgs:
+      initial-cluster: {% set hosts = [] %}{% for host in all_etcd_hosts %}{{ hosts.append(host.name+'=https://'+host.address+':2380') }}{% endfor %}{{hosts|join(',')}}
+      initial-cluster-state: new
+      name: {{this_etcd_host.name}}
+      listen-peer-urls: https://{{this_etcd_host.address}}:2380
+      listen-client-urls: https://{{this_etcd_host.address}}:2379
+      advertise-client-urls: https://{{this_etcd_host.address}}:2379
+      initial-advertise-peer-urls: https://{{this_etcd_host.address}}:2380

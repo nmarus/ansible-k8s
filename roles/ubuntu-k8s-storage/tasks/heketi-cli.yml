@@ -1,0 +1,25 @@
+---
+- name: Get status of heketi-cli
+  vars:
+    heketi_bin: heketi-cli
+  shell: which {{heketi_bin}}
+  no_log: true
+  ignore_errors: true
+  register: heketi_bin_stat
+
+- name: Install heketi-cli v{{glusterfs_heketi_version}} from github release
+  when: heketi_bin_stat.rc != 0
+  become: true
+  become_method: sudo
+  vars:
+    heketi_bin: heketi-cli
+    heketi_version: "{{glusterfs_heketi_version}}"
+    heketi_os: linux
+  shell: |
+    curl -SL https://github.com/heketi/heketi/releases/download/v{{heketi_version}}/heketi-v{{heketi_version}}.{{heketi_os}}.amd64.tar.gz -o /tmp/heketi-v{{heketi_version}}.{{heketi_os}}.amd64.tar.gz
+    tar xzvf /tmp/heketi-v{{heketi_version}}.{{heketi_os}}.amd64.tar.gz -C /tmp
+    rm -vf /tmp/heketi-v{{heketi_version}}.{{heketi_os}}.amd64.tar.gz
+    cp /tmp/heketi/{{heketi_bin}} /usr/local/bin/{{heketi_bin}}_{{heketi_version}}
+    rm -vrf /tmp/heketi
+    cd /usr/local/bin
+    ln -vsnf {{heketi_bin}}_{{heketi_version}} {{heketi_bin}}

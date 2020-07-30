@@ -1,0 +1,29 @@
+---
+- name: Get vm-name from hostvars
+  set_fact:
+    vm_name: "{{hostvars[inventory_hostname].ansible_facts.vm_name}}"
+
+- name: Find snapshots in hostvars
+  set_fact:
+    snapshots_found: "{{hostvars[inventory_hostname].ansible_facts.lastSnapshots is defined and hostvars[inventory_hostname].ansible_facts.lastSnapshots | length > 0}}"
+
+- name: Determine last snapshot name
+  when: snapshots_found
+  set_fact:
+    snapshot_name: "{{hostvars[inventory_hostname].ansible_facts.lastSnapshots[-1]}}"
+
+- name: Revert to last snapshot (if found)
+  when: snapshots_found
+  vars:
+    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+  local_action:
+    module: vmware_guest_snapshot
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    datacenter: "{{datacenter}}"
+    folder: "/{{datacenter}}/vm/"
+    name: "{{vm_name}}"
+    state: revert
+    snapshot_name: "{{snapshot_name}}"

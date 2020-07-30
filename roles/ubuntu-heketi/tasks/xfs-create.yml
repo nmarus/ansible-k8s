@@ -1,0 +1,24 @@
+---
+- name: Verify XFS filesystem on "{{glusterfs_heketi_xfs_device}}"
+  become: true
+  become_method: sudo
+  filesystem:
+    fstype: xfs
+    dev: "{{glusterfs_heketi_xfs_device}}"
+
+- name: Verify directory "/bricks/{{glusterfs_heketi_xfs_device|basename}}" exists
+  become: true
+  become_method: sudo
+  file:
+    path: /bricks/{{glusterfs_heketi_xfs_device|basename}}
+    state: directory
+    mode: 0755
+
+- name: Verify XFS device {{glusterfs_heketi_xfs_device}} is mounted to "/bricks/{{glusterfs_heketi_xfs_device|basename}}"
+  become: true
+  become_method: sudo
+  mount:
+    path: "/bricks/{{glusterfs_heketi_xfs_device|basename}}"
+    src: "{{glusterfs_heketi_xfs_device}}"
+    fstype: xfs
+    state: mounted

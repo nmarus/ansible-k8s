@@ -1,0 +1,197 @@
+---
+#
+# Download Ubuntu OVA
+#
+
+- hosts: localhost
+  tasks:
+    - import_role:
+        name: ubuntu-image
+
+#
+# Provision Ubuntu Hosts
+#
+
+- hosts: localhost
+  tasks:
+    - include_role:
+        name: vmw-ubuntu
+      vars:
+        vm_name: "k8s-glusterfs-{{ansible_loop.index}}"
+        vm_hostname: "k8s-glusterfs-{{ansible_loop.index}}"
+        network_ip_address: "{{item}}"
+        root_password: "{{default_password}}"
+        ova_path: "{{playbook_dir}}/resources/ubuntu-18.04-server-cloudimg-amd64.ova"
+        hw_memory: 4096
+        hw_cpus: 2
+        hw_disk: 20
+      loop_control:
+        extended: yes
+      loop: "{{groups['k8s_glusterfs']|list}}"
+
+- hosts: localhost
+  tasks:
+    - include_role:
+        name: vmw-ubuntu
+      vars:
+        vm_name: "k8s-haproxy-{{ansible_loop.index}}"
+        vm_hostname: "k8s-haproxy-{{ansible_loop.index}}"
+        network_ip_address: "{{item}}"
+        root_password: "{{default_password}}"
+        ova_path: "{{playbook_dir}}/resources/ubuntu-18.04-server-cloudimg-amd64.ova"
+        hw_memory: 4096
+        hw_cpus: 2
+        hw_disk: 20
+      loop_control:
+        extended: yes
+      loop: "{{groups['k8s_haproxy']|list}}"
+
+- hosts: localhost
+  tasks:
+    - include_role:
+        name: vmw-ubuntu
+      vars:
+        vm_name: "k8s-etcd-{{ansible_loop.index}}"
+        vm_hostname: "k8s-etcd-{{ansible_loop.index}}"
+        network_ip_address: "{{item}}"
+        root_password: "{{default_password}}"
+        ova_path: "{{playbook_dir}}/resources/ubuntu-18.04-server-cloudimg-amd64.ova"
+        hw_memory: 4096
+        hw_cpus: 2
+        hw_disk: 20
+      loop_control:
+        extended: yes
+      loop: "{{groups['k8s_etcd']|list}}"
+
+- hosts: localhost
+  tasks:
+    - include_role:
+        name: vmw-ubuntu
+      vars:
+        vm_name: "k8s-manager-{{ansible_loop.index}}"
+        vm_hostname: "k8s-manager-{{ansible_loop.index}}"
+        network_ip_address: "{{item}}"
+        root_password: "{{default_password}}"
+        ova_path: "{{playbook_dir}}/resources/ubuntu-18.04-server-cloudimg-amd64.ova"
+        hw_memory: 4096
+        hw_cpus: 2
+        hw_disk: 20
+      loop_control:
+        extended: yes
+      loop: "{{groups['k8s_manager']|list}}"
+
+- hosts: localhost
+  tasks:
+    - include_role:
+        name: vmw-ubuntu
+      vars:
+        vm_name: "k8s-worker-{{ansible_loop.index}}"
+        vm_hostname: "k8s-worker-{{ansible_loop.index}}"
+        network_ip_address: "{{item}}"
+        root_password: "{{default_password}}"
+        ova_path: "{{playbook_dir}}/resources/ubuntu-18.04-server-cloudimg-amd64.ova"
+        hw_memory: 4096
+        hw_cpus: 2
+        hw_disk: 20
+      loop_control:
+        extended: yes
+      loop: "{{groups['k8s_worker']|list}}"
+
+#
+# Add Secondary Disk(s) to Ubuntu VMs
+#
+
+- hosts: localhost
+  tasks:
+    - name: "Add Secondary Disk 1 to Virtual Machine"
+      local_action:
+        module: vmware_guest_disk
+        name: "k8s-glusterfs-{{ansible_loop.index}}"
+        hostname: "{{vcenter_hostname}}"
+        username: "{{vcenter_username}}"
+        password: "{{vcenter_password}}"
+        validate_certs: false
+        datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+        disk:
+          - scsi_type: paravirtual
+            scsi_controller: 0
+            unit_number: 1
+            state: present
+            size_gb: 10
+            autoselect_datastore: yes
+            type: "{{vcenter_disk_provisioning}}"
+      loop_control:
+        extended: yes
+      loop: "{{groups['k8s_glusterfs']|list}}"
+
+- hosts: localhost
+  tasks:
+    - name: "Add Secondary Disk 2 to Virtual Machine"
+      local_action:
+        module: vmware_guest_disk
+        name: "k8s-glusterfs-{{ansible_loop.index}}"
+        hostname: "{{vcenter_hostname}}"
+        username: "{{vcenter_username}}"
+        password: "{{vcenter_password}}"
+        validate_certs: false
+        datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+        disk:
+          - scsi_type: paravirtual
+            scsi_controller: 0
+            unit_number: 2
+            state: present
+            size_gb: 100
+            autoselect_datastore: yes
+            type: "{{vcenter_disk_provisioning}}"
+      loop_control:
+        extended: yes
+      loop: "{{groups['k8s_glusterfs']|list}}"
+
+#
+# Utility Playbooks
+#
+
+# Create NEW snapshot for all managed virtual machines
+- hosts: all
+  tasks:
+    - import_role:
+        name: vmw-snapshot-create
+      tags:
+        - never
+        - snapshot-create
+
+# Clear ALL snapshots for all managed virtual machines
+- hosts: all
+  tasks:
+    - import_role:
+        name: vmw-snapshot-clear
+      tags:
+        - never
+        - snapshot-clear
+
+# Restore LAST Snapshot for all managed virtual machines
+- hosts: all
+  tasks:
+    - import_role:
+        name: vmw-snapshot-restore
+      tags:
+        - never
+        - snapshot-restore
+
+# Remove ALL Virtual Machines from vCenter
+- hosts: all
+  tasks:
+    - import_role:
+        name: vmw-remove-hosts
+      tags:
+        - never
+        - remove-hosts
+    - name: Remove cache
+      run_once: true
+      tags:
+        - never
+        - remove-hosts
+      local_action:
+        module: file
+        path: "{{playbook_dir}}/.cache"
+        state: absent

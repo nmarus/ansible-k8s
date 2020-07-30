@@ -1,0 +1,9 @@
+---
+apiVersion: projectcalico.org/v3
+kind: CalicoAPIConfig
+metadata:
+spec:
+  etcdEndpoints: "{% set endpoints = [] %}{% for ip in k8s_etcd_nodes %}{{ endpoints.append('https://' + ip + ':2379')}}{% endfor %}{{endpoints|list|join(',')}}"
+  etcdKeyFile: /etc/kubernetes/pki/apiserver-etcd-client.key
+  etcdCertFile: /etc/kubernetes/pki/apiserver-etcd-client.crt
+  etcdCACertFile: /etc/kubernetes/pki/etcd/ca.crt

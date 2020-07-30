@@ -1,0 +1,38 @@
+---
+- name: "Create /home/{{ansible_user}}/kubeadmcfg.yaml"
+  become: true
+  become_method: sudo
+  vars:
+    certificate_key: "{{hostvars[k8s_manager_nodes[0]].ansible_facts.certificate_key}}"
+  template:
+    src: kubeadmcfg-master-yaml.j2
+    dest: "/home/{{ansible_user}}/kubeadmcfg.yaml"
+    mode: 0644
+    owner: "{{ansible_user}}"
+    group: "{{ansible_user}}"
+
+- name: Fetch generated /home/{{ansible_user}}/kubeadmcfg.yaml
+  become_method: sudo
+  become: true
+  fetch:
+    src: /home/{{ansible_user}}/kubeadmcfg.yaml
+    dest: "{{playbook_dir}}/generated"
+
+- name: Join node to k8s as new Control Plane
+  become_method: sudo
+  become: true
+  shell: kubeadm join --config kubeadmcfg.yaml
+
+- name: Update host facts regarding k8s install
+  set_fact:
+    cacheable: yes
+    k8s_enabled: yes
+
+- name: Update local profile for kube access
+  become_method: sudo
+  become: true
+  shell: |
+    rm -rf /home/{{ansible_user}}/.kube
+    mkdir -p /home/{{ansible_user}}/.kube
+    cp -i /etc/kubernetes/admin.conf /home/{{ansible_user}}/.kube/config
+    chown -R $(id -u):$(id -g) /home/{{ansible_user}}/.kube

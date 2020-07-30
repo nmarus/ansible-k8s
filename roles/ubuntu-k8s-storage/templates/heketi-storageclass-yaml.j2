@@ -1,0 +1,17 @@
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{glusterfs_services_name}}
+  namespace: default
+provisioner: kubernetes.io/glusterfs
+parameters:
+  resturl: "http://localhost:{{heketi_nodePort}}"
+  clusterid: {{heketi_clusterid}}
+  restuser: admin
+  secretNamespace: {{heketi_namespace}}
+  secretName: {{heketi_services_name}}-secret
+  volumetype: "{{heketi_volumetype}}"
+reclaimPolicy: {{heketi_reclaimPolicy}}
+allowVolumeExpansion: {{heketi_allowVolumeExpansion}}
+volumeBindingMode: Immediate

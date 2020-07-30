@@ -1,0 +1,28 @@
+---
+- name: Verify ssh keys are applied to the root user
+  become_method: sudo
+  become: true
+  shell: |
+    mkdir -p /root/.ssh
+    # check for backup from a previous run
+    if [ -f /root/.ssh/authorized_keys.ansible_bak ]; then
+      rm /root/.ssh/authorized_keys
+      mv /root/.ssh/authorized_keys.ansible_bak /root/.ssh/authorized_keys
+      chown root:root /root/.ssh/authorized_keys
+      chmod 600 /root/.ssh/authorized_keys
+    fi
+
+    # backup authorized_keys
+    if [ -f /root/.ssh/authorized_keys ]; then
+      cp /root/.ssh/authorized_keys /root/.ssh/authorized_keys.ansible_bak
+    else
+      touch /root/.ssh/authorized_keys.ansible_bak
+    fi
+
+    # append key to authorized_keys
+    cat /data/heketi/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys
+
+- name: Update host facts regarding pod ssh key install
+  set_fact:
+    cacheable: yes
+    k8s_networked: yes

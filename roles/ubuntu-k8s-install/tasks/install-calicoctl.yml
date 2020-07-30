@@ -1,0 +1,30 @@
+---
+- name: Verify calico config directory /etc/calico exists
+  become_method: sudo
+  become: true
+  file:
+    path: /etc/calico
+    state: directory
+
+- name: Create /etc/calico/calicoctl.cfg
+  become: true
+  become_method: sudo
+  template:
+    src: calicoctl-cfg.j2
+    dest: /etc/calico/calicoctl.cfg
+    mode: 0644
+
+- name: Fetch generated /etc/calico/calicoctl.cfg
+  become_method: sudo
+  become: true
+  fetch:
+    src: /etc/calico/calicoctl.cfg
+    dest: "{{playbook_dir}}/generated"
+
+- name: Install calicoctl v{{calicoctl_version}} from github release
+  become: true
+  become_method: sudo
+  shell: |
+    curl -SL https://github.com/projectcalico/calicoctl/releases/download/v3.15.1/calicoctl -o /usr/local/bin/calicoctl
+    chmod +x /usr/local/bin/calicoctl
+    chown root:root /usr/local/bin/calicoctl

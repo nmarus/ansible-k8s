@@ -1,0 +1,23 @@
+---
+- include_tasks: heketi-cli.yml
+
+- include_tasks: xfs-create.yml
+
+- include_tasks: gfs-create.yml
+  when: inventory_hostname == glusterfs_nodes[0]
+
+- include_tasks: gfs-mount.yml
+
+- include_tasks: ssh-key-create.yml
+  when: inventory_hostname == glusterfs_nodes[0]
+
+- include_tasks: ssh-key-update.yml
+
+- name: Cleanup temp files on local host
+  run_once: true
+  become_method: sudo
+  become: true
+  local_action:
+    module: file
+    path: /tmp/heketi
+    state: absent

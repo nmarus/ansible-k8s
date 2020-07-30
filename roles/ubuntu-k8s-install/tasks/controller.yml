@@ -1,0 +1,74 @@
+---
+- name: Remove any existing kube profiles
+  become_method: sudo
+  become: true
+  file:
+    path: /home/{{ansible_user}}/.kube
+    state: absent
+
+- name: Remove any existing local temp files in /tmp/k8s_etcd
+  run_once: true
+  become_method: sudo
+  become: true
+  local_action:
+    module: file
+    path: /tmp/k8s_etcd
+    state: absent
+
+- import_tasks: get-etcd-certs.yml
+  delegate_to: "{{k8s_etcd_nodes[0]}}"
+
+- import_tasks: update-etcd-certs.yml
+
+- name: Cleanup local temp files in /tmp/k8s_etcd
+  run_once: true
+  become_method: sudo
+  become: true
+  local_action:
+    module: file
+    path: /tmp/k8s_etcd
+    state: absent
+
+- shell: kubeadm alpha certs certificate-key
+  register: get_certificate_key
+- set_fact:
+    cacheable: yes
+    certificate_key: "{{get_certificate_key.stdout}}"
+- debug:
+    var: certificate_key
+
+- name: "Create /home/{{ansible_user}}/kubeadmcfg.yaml"
+  become: true
+  become_method: sudo
+  template:
+    src: kubeadmcfg-controller-yaml.j2
+    dest: "/home/{{ansible_user}}/kubeadmcfg.yaml"
+    mode: 0644
+    owner: "{{ansible_user}}"
+    group: "{{ansible_user}}"
+
+- name: Fetch generated /home/{{ansible_user}}/kubeadmcfg.yaml
+  become_method: sudo
+  become: true
+  fetch:
+    src: /home/{{ansible_user}}/kubeadmcfg.yaml
+    dest: "{{playbook_dir}}/generated"
+
+- name: Initialize k8s Control Plane
+  become_method: sudo
+  become: true
+  shell: kubeadm init --config kubeadmcfg.yaml --upload-certs
+
+- name: Update local profile for kube access
+  become_method: sudo
+  become: true
+  shell: |
+    rm -rf /home/{{ansible_user}}/.kube
+    mkdir -p /home/{{ansible_user}}/.kube
+    cp -i /etc/kubernetes/admin.conf /home/{{ansible_user}}/.kube/config
+    chown -R {{ansible_user}}:{{ansible_user}} /home/{{ansible_user}}/.kube
+
+- name: Update host facts regarding k8s install
+  set_fact:
+    cacheable: yes
+    k8s_enabled: yes

@@ -1,0 +1,47 @@
+---
+- name: Check if secret exists
+  shell: kubectl -n {{secret_namespace}} get secret {{secret_name}}
+  no_log: true
+  ignore_errors: true
+  register: secret_status
+
+- name: Remove any existing remote temp files in /tmp/k8s_tls
+  when: secret_status.rc != 0
+  become_method: sudo
+  become: true
+  file:
+    path: /tmp/k8s_tls
+    state: absent
+
+- name: Verify remote temp directory /tmp/k8s_tls exists
+  when: secret_status.rc != 0
+  become: true
+  become_method: sudo
+  file:
+    path: /tmp/k8s_tls
+    state: directory
+    mode: 0755
+
+- name: Copy SSL Cert file to remote Host
+  when: secret_status.rc != 0
+  become_method: sudo
+  become: true
+  copy:
+    src: "{{ssl_crt_path}}"
+    dest: /tmp/k8s_tls/tls.crt
+
+- name: Copy SSL Key file to remote Host
+  when: secret_status.rc != 0
+  become_method: sudo
+  become: true
+  copy:
+    src: "{{ssl_key_path}}"
+    dest: /tmp/k8s_tls/tls.key
+
+- name: Create k8s Secret {{secret_name}}
+  when: secret_status.rc != 0
+  shell: |
+    cd /tmp/k8s_tls
+    kubectl -n {{secret_namespace}} create secret tls {{secret_name}} \
+      --key tls.key \
+      --cert tls.crt

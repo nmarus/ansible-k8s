@@ -1,0 +1,28 @@
+---
+- name: Verify directory "/data/heketi" exists
+  become: true
+  become_method: sudo
+  file:
+    path: /data/heketi
+    state: directory
+    mode: 0755
+
+- name: Verify Gluster volume {{glusterfs_heketi_gfs_volume}} is defined for /data/heketi
+  become: true
+  become_method: sudo
+  mount:
+    path: "/data/heketi"
+    src: "{{glusterfs_nodes[0]}}:/{{glusterfs_heketi_gfs_volume}}"
+    fstype: glusterfs
+    opts: "defaults,_netdev,backup-volfile-servers={{glusterfs_nodes[1:] | join(':')}}"
+    state: present
+
+- name: Verify Gluster volume {{glusterfs_heketi_gfs_volume}} is mounted to /data/heketi
+  become: true
+  become_method: sudo
+  mount:
+    path: "/data/heketi"
+    src: "{{glusterfs_nodes[0]}}:/{{glusterfs_heketi_gfs_volume}}"
+    fstype: glusterfs
+    opts: "defaults,_netdev,backup-volfile-servers={{glusterfs_nodes[1:] | join(':')}}"
+    state: mounted

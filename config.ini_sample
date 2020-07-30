@@ -1,0 +1,52 @@
+[k8s_glusterfs]
+# dedicated glusterfs-heketi cluster (2 or more hosts)
+10.0.0.11
+10.0.0.12
+10.0.0.13
+
+[k8s_etcd]
+# dedicated etcd cluster managed by kubelet (must be an odd number with a minimum count of 3)
+10.0.0.21
+10.0.0.22
+10.0.0.23
+
+# k8s load balancer for control plane (only one host is supported)
+[k8s_haproxy]
+10.0.0.30
+
+# k8s manager nodes (must be an odd number with a minimum count of 3)
+[k8s_manager]
+10.0.0.31
+10.0.0.32
+10.0.0.33
+
+# k8s worker nodes (minimum count of one, suggested 2 or more for HA)
+[k8s_worker]
+10.0.0.41
+10.0.0.42
+
+[all:vars]
+# ansible connection config
+ansible_connection=ssh
+ansible_user=ubuntu
+ansible_ssh_private_key_file=.ssh/id_rsa
+ansible_ssh_public_key_file=.ssh/id_rsa.pub
+
+# Password for all accounts created during setup
+default_password=password
+
+# Host Networking config
+network_gateway=10.0.0.1
+network_subnetprefix="25"
+network_domain_name=domain.local
+network_dns_servers=8.8.8.8,8.8.4.4
+
+# VMWare provisioning vars (required when using VMware platform)
+vcenter_hostname=10.0.0.5
+vcenter_username=administrator@vsphere.local
+vcenter_password=password
+vcenter_network="VM Network"
+vcenter_datastore=Datastore 1
+vcenter_datacenter=Datacenter
+vcenter_cluster=Cluster 1
+vcenter_disk_provisioning=thin

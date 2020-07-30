@@ -1,0 +1,125 @@
+---
+- import_tasks: common.yml
+
+- name: Remove any existing remote temp files from last run
+  become_method: sudo
+  become: true
+  file:
+    path: /tmp/k8s_etcd
+    state: absent
+
+- name: Remove any existing local temp files from last run
+  run_once: true
+  become_method: sudo
+  become: true
+  local_action:
+    module: file
+    path: /tmp/k8s_etcd
+    state: absent
+
+- name: Verify remote temp directory /tmp/k8s_etcd exists
+  become: true
+  become_method: sudo
+  file:
+    path: "/tmp/k8s_etcd"
+    state: directory
+    mode: 0755
+
+- include_tasks: etcd-config.yml
+  when: inventory_hostname == k8s_etcd_nodes[0]
+  vars:
+    all_etcd_hosts: "{% set hosts = [] %}{% for i in range(0, k8s_etcd_nodes|length) %}{{ hosts.append({'name': 'infra'+i|string, 'address': k8s_etcd_nodes[i]}) }}{% endfor %}{{hosts|list}}"
+    this_etcd_host:
+      name: "infra{{ansible_loop.index0}}"
+      address: "{{hostvars[k8s_etcd_nodes[ansible_loop.index0]]['ansible_default_ipv4']['address']}}"
+  loop_control:
+    extended: yes
+  loop: "{{k8s_etcd_nodes}}"
+
+- include_tasks: etcd-certs.yml
+  when: inventory_hostname == k8s_etcd_nodes[0]
+  vars:
+    all_etcd_hosts: "{% set hosts = [] %}{% for i in range(0, k8s_etcd_nodes|length) %}{{ hosts.append({'name': 'infra'+i|string, 'address': k8s_etcd_nodes[i]}) }}{% endfor %}{{hosts|list}}"
+
+- name: Gather generated files to fetch on primary host
+  when: inventory_hostname == k8s_etcd_nodes[0]
+  shell: (cd /tmp/k8s_etcd; find . -type f) | sed 's/\.\///'
+  register: files_to_copy
+
+- name: Fetch generated files on primary host
+  when: inventory_hostname == k8s_etcd_nodes[0]
+  become_method: sudo
+  become: true
+  fetch:
+    src: /tmp/k8s_etcd/{{item}}
+    dest: /tmp/k8s_etcd/
+  with_items: "{{files_to_copy.stdout_lines}}"
+
+- name: Copy generated files to /tmp/k8s_etcd on secondary hosts
+  when: inventory_hostname != k8s_etcd_nodes[0]
+  become_method: sudo
+  become: true
+  copy:
+    src: /tmp/k8s_etcd/{{k8s_etcd_nodes[0]}}/tmp/k8s_etcd
+    dest: /tmp
+
+- name: Move certificates from tmp directory to /etc/kubernetes/ on secondary hosts
+  when: inventory_hostname != k8s_etcd_nodes[0]
+  become_method: sudo
+  become: true
+  shell: |
+    mv /tmp/k8s_etcd/{{inventory_hostname}}/pki /etc/kubernetes/
+    chown -R root:root /etc/kubernetes/pki
+
+- name: Copy kubeadmcfg.yaml to home directory of ansible user on each host
+  become_method: sudo
+  become: true
+  shell: |
+    cp /tmp/k8s_etcd/{{inventory_hostname}}/kubeadmcfg.yaml /home/{{ansible_user}}
+    chown -R {{ansible_user}}:{{ansible_user}} /home/{{ansible_user}}/kubeadmcfg.yaml
+
+- name: Create the static pod manifest on all etcd hosts
+  become_method: sudo
+  become: true
+  shell: kubeadm init phase etcd local --config=/home/{{ansible_user}}/kubeadmcfg.yaml
+
+- name: Wait for etcd services to become available
+  wait_for:
+    host: "{{inventory_hostname}}"
+    port: 2379
+    state: started
+    delay: 15
+    sleep: 5
+    timeout: 300
+
+- name: Run tests for etcd cluster
+  register: test_etcd
+  shell: |
+    ETCD_TAG=$(kubeadm config images list | grep 'etcd' | sed -E 's/.*etcd:([0-9]+\.[0-9]+\.[0-9]+\-[0-9]+$)/\1/')
+    docker run --rm -it \
+      --net host \
+      -v /etc/kubernetes:/etc/kubernetes k8s.gcr.io/etcd:${ETCD_TAG} etcdctl \
+      --cert /etc/kubernetes/pki/etcd/peer.crt \
+      --key /etc/kubernetes/pki/etcd/peer.key \
+      --cacert /etc/kubernetes/pki/etcd/ca.crt \
+      --endpoints https://{{inventory_hostname}}:2379 endpoint health --cluster
+
+- name: Show test results for etcd cluster on primary host
+  debug:
+    msg: "{{test_etcd.stdout_lines}}"
+
+- name: Cleanup temp files on remote hosts
+  become_method: sudo
+  become: true
+  file:
+    path: /tmp/k8s_etcd
+    state: absent
+
+- name: Cleanup temp files on local host
+  run_once: true
+  become_method: sudo
+  become: true
+  local_action:
+    module: file
+    path: /tmp/k8s_etcd
+    state: absent

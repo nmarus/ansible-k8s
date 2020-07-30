@@ -1,0 +1,17 @@
+---
+clusters:
+  - nodes:
+{% for i in range(0, glusterfs_nodes|length) %}
+    - node:
+        hostnames:
+          manage:
+            - {{glusterfs_nodes[i]}}
+          storage:
+            - {{glusterfs_nodes[i]}}
+        zone: {{i + 1}}
+      devices:
+{% for device in heketi_xfs_devices %}
+        - name: "{{device}}"
+          destroydata: {{heketi_destroy_device}}
+{% endfor %}
+{% endfor %}

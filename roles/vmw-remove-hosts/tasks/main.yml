@@ -1,0 +1,20 @@
+---
+- name: Gather meta data for snapshot generation
+  set_fact:
+    vm_name: "{{hostvars[inventory_hostname].ansible_facts.vm_name}}"
+
+- name: Remove VM
+  vars:
+    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+  local_action:
+    module: vmware_guest
+    name: "{{vm_name}}"
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    datastore: "{{vcenter_datastore}}"
+    datacenter: "{{datacenter}}"
+    cluster: "{{vcenter_cluster if vcenter_cluster is defined else None}}"
+    state: absent
+    force: true

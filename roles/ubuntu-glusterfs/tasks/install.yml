@@ -1,0 +1,35 @@
+---
+- name: Install Gluster and dependencies
+  become: true
+  become_method: sudo
+  apt:
+    pkg:
+      - xfsprogs
+      - attr
+      - glusterfs-server
+      - glusterfs-common
+      - glusterfs-client
+      - nfs-common
+      - thin-provisioning-tools
+      - jq
+    state: present
+    force_apt_get: true
+    update_cache: yes
+
+- name: Create symlink for LVM
+  become: true
+  become_method: sudo
+  file:
+    src: /sbin/lvm
+    dest: /usr/sbin/lvm
+    owner: root
+    group: root
+    state: link
+
+- name: Enable Gluster service
+  become: true
+  become_method: sudo
+  systemd:
+    name: glusterd
+    enabled: yes
+    state: started

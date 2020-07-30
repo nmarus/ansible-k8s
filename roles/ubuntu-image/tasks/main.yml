@@ -1,0 +1,7 @@
+---
+- name: Download {{image_url|basename}}
+  get_url:
+    url: "{{image_url}}"
+    dest: "{{image_dir}}/{{image_url|basename}}"
+    mode: 0755
+    force: "{{image_overwrite}}"

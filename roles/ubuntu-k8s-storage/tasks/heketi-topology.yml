@@ -1,0 +1,54 @@
+---
+- name: Verify config directory /ansible_generated_configs
+  become_method: sudo
+  become: true
+  file:
+    path: /ansible_generated_configs
+    state: directory
+
+- name: Create /ansible_generated_configs/heketi-topology.yaml
+  become: true
+  become_method: sudo
+  template:
+    src: heketi-topology-yaml.j2
+    dest: /ansible_generated_configs/heketi-topology.yaml
+    mode: 0644
+
+- name: Fetch generated /ansible_generated_configs/heketi-topology.yaml
+  become_method: sudo
+  become: true
+  fetch:
+    src: /ansible_generated_configs/heketi-topology.yaml
+    dest: "{{playbook_dir}}/generated"
+
+- name: Open /ansible_generated_configs/heketi-topology.yaml
+  slurp:
+    src: /ansible_generated_configs/heketi-topology.yaml
+  register: heketi_topology_yaml
+
+- name: Convert loaded YAML to JSON and save to /ansible_generated_configs/heketi-topology.json
+  become: true
+  become_method: sudo
+  copy:
+    content: "{{heketi_topology_yaml.content| b64decode | from_yaml | to_nice_json(indent=2)}}"
+    dest: /ansible_generated_configs/heketi-topology.json
+    mode: 0644
+
+- name: Apply heketi topology
+  register: topologyLoad
+  shell: |
+    heketi-cli \
+      --user admin \
+      --secret {{heketi_admin_secret}} \
+      --server http://{{inventory_hostname}}:{{heketi_nodePort}} \
+      topology load --json /ansible_generated_configs/heketi-topology.json
+
+- debug:
+    var: topologyLoad
+
+- name: Clean up temp files in /ansible_generated_configs
+  become_method: sudo
+  become: true
+  file:
+    path: /ansible_generated_configs
+    state: absent

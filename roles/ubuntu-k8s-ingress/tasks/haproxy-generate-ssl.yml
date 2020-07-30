@@ -1,0 +1,45 @@
+---
+- name: Remove any existing remote temp files in /tmp/k8s_tls
+  become_method: sudo
+  become: true
+  file:
+    path: /tmp/k8s_tls
+    state: absent
+
+- name: Remove any existing local temp files in /tmp/k8s_tls
+  become_method: sudo
+  become: true
+  local_action:
+    module: file
+    path: /tmp/k8s_tls
+    state: absent
+
+- name: Verify remote temp directory /tmp/k8s_tls exists
+  become: true
+  become_method: sudo
+  file:
+    path: /tmp/k8s_tls
+    state: directory
+    mode: 0755
+
+- name: Create SSL Certificate for {{ssl_cn_name}}
+  become: true
+  become_method: sudo
+  shell: |
+    cd /tmp/k8s_tls
+    openssl req -x509 -nodes \
+      -days {{ssl_expire_days}} \
+      -newkey rsa:{{ssl_key_size}} \
+      -keyout {{ssl_filename}}.key \
+      -out {{ssl_filename}}.crt \
+      -subj "/CN={{ssl_cn_name}}{{ssl_subj_opt}}"
+
+- name: Fetch generated files
+  become_method: sudo
+  become: true
+  fetch:
+    src: /tmp/k8s_tls/{{item}}
+    dest: /tmp/k8s_tls
+  with_items:
+    - "{{ssl_filename}}.key"
+    - "{{ssl_filename}}.crt"

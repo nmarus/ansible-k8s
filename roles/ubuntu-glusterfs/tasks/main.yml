@@ -1,0 +1,12 @@
+---
+- include_tasks: install.yml
+
+- name: Probe Gluster nodes
+  run_once: true
+  become: true
+  become_method: sudo
+  shell: gluster peer probe {{item}}
+  with_items: "{{glusterfs_nodes}}"
+
+- include_tasks: plugins.yml
+  when: glusterfs_install_plugins

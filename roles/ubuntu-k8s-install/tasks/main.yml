@@ -1,0 +1,21 @@
+---
+- include_tasks: controller.yml
+  when: inventory_hostname == k8s_manager_nodes[0] and ('k8s_enabled' not in ansible_facts or not k8s_enabled)
+
+- include_tasks: networking-calico.yml
+  when: inventory_hostname == k8s_manager_nodes[0]
+
+- include_tasks: get-discovery-yaml.yml
+  when: inventory_hostname == k8s_manager_nodes[0]
+
+- include_tasks: update-discovery-yaml.yml
+  when: inventory_hostname != k8s_manager_nodes[0]
+
+- include_tasks: manager.yml
+  when: inventory_hostname in k8s_manager_nodes and inventory_hostname != k8s_manager_nodes[0] and ('k8s_enabled' not in ansible_facts or not k8s_enabled)
+
+- include_tasks: worker.yml
+  when: inventory_hostname in k8s_worker_nodes and ('k8s_enabled' not in ansible_facts or not k8s_enabled)
+
+- include_tasks: install-calicoctl.yml
+  when: inventory_hostname in k8s_manager_nodes

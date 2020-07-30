@@ -1,0 +1,64 @@
+---
+- include_tasks: glusterfs-client-tools.yml
+
+- include_tasks: heketi-cli.yml
+
+- include_tasks: glusterfs-service.yml
+  when: inventory_hostname == k8s_controller
+
+- include_tasks: heketi-labels.yml
+  when: inventory_hostname == k8s_controller
+
+- include_tasks: heketi-service.yml
+  when: inventory_hostname == k8s_controller
+
+- name: Determine nodePort for heketi service
+  when: inventory_hostname == k8s_controller
+  register: getNodePort
+  shell: kubectl -n {{glusterfs_namespace}} get service {{heketi_services_name}} -o json | jq '.spec.ports[0].nodePort'
+
+- name: Save fact with nodePort for heketi service
+  when: inventory_hostname == k8s_controller
+  set_fact:
+    heketi_nodePort: "{{getNodePort.stdout}}"
+    cacheable: yes
+
+- debug:
+    var: heketi_nodePort
+  when: inventory_hostname == k8s_controller
+
+- name: Wait for hekiti service port to become ready
+  when: inventory_hostname == k8s_controller
+  wait_for:
+    host: "{{inventory_hostname}}"
+    port: "{{heketi_nodePort}}"
+    state: started
+    delay: 0
+    sleep: 5
+    timeout: 120
+
+- include_tasks: heketi-topology.yml
+  when: inventory_hostname == k8s_controller
+
+- name: Determine ID of Gluster cluster
+  when: inventory_hostname == k8s_controller
+  register: getClusterId
+  shell: |
+    heketi-cli \
+      --user admin \
+      --secret {{heketi_admin_secret}} \
+      --server http://{{inventory_hostname}}:{{heketi_nodePort}} \
+      cluster list --json | jq -r '.clusters[0]'
+
+- name: Save fact with clusterid for heketi service
+  when: inventory_hostname == k8s_controller
+  set_fact:
+    heketi_clusterid: "{{getClusterId.stdout}}"
+    cacheable: yes
+
+- debug:
+    var: heketi_clusterid
+  when: inventory_hostname == k8s_controller
+
+- include_tasks: heketi-storageclass.yml
+  when: inventory_hostname == k8s_controller

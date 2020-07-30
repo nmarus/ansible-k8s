@@ -1,0 +1,25 @@
+---
+- name: Verify save dir directory {{ssl_save_dir}} exists
+  when: secret_status.rc != 0
+  become: true
+  become_method: sudo
+  file:
+    path: "{{ssl_save_dir}}"
+    state: directory
+    mode: 0755
+    
+- name: Copy {{ssl_crt_path}} to {{ssl_save_dir}}
+  become_method: sudo
+  become: true
+  local_action:
+    module: copy
+    src: "{{ssl_crt_path}}"
+    dest: "{{ssl_save_dir}}/"
+
+- name: Copy {{ssl_key_path}} to {{ssl_save_dir}}
+  become_method: sudo
+  become: true
+  local_action:
+    module: copy
+    src: "{{ssl_key_path}}"
+    dest: "{{ssl_save_dir}}/"

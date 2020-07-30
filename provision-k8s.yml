@@ -1,0 +1,279 @@
+---
+#
+# Install k8s Pre-reqs on glusterfss, k8s_haproxys, etcds, managers, and workers
+#
+
+- hosts: all
+  tasks:
+    - name: Update Facts
+      tags:
+        - common
+        - docker
+        - b8s-base
+        - prereqs
+      gather_facts:
+        parallel: yes
+    - import_role:
+        name: ubuntu-common
+      tags:
+        - common
+        - prereqs
+      vars:
+        ubuntu_apt_packages:
+          - git
+          - curl
+          - wget
+          - vim
+    - import_role:
+        name: ubuntu-docker-deploy
+      tags:
+        - docker
+        - prereqs
+    - import_role:
+        name: ubuntu-k8s-base
+      tags:
+        - b8s-base
+        - prereqs
+
+#
+# Setup GlusterFS Service (run on all glusterfs nodes)
+#
+
+- hosts: k8s_glusterfs
+  tasks:
+    - name: Update Facts
+      tags:
+        - glusterfs
+      gather_facts:
+        parallel: yes
+    - import_role:
+        name: ubuntu-glusterfs
+      tags:
+        - glusterfs
+      vars:
+        glusterfs_nodes: "{{groups['k8s_glusterfs']|list}}"
+
+#
+# Setup Heketi on GlusterFS nodes (run on all glusterfs nodes)
+#
+
+- hosts: k8s_glusterfs
+  tasks:
+    - name: Update Facts
+      tags:
+        - heketi
+      gather_facts:
+        parallel: yes
+    - import_role:
+        name: ubuntu-heketi
+      tags:
+        - heketi
+      vars:
+        glusterfs_nodes: "{{groups['k8s_glusterfs']|list}}"
+        glusterfs_heketi_auth_allow: "{{(groups['k8s_manager'] + groups['k8s_worker']) | list}}"
+        glusterfs_heketi_xfs_device: /dev/sdb
+        glusterfs_heketi_gfs_volume: heketi_data
+
+#
+# Install HAProxy Loadbalancer (run on haproxy node)
+#
+
+- hosts: k8s_haproxy
+  tasks:
+    - name: Update Facts
+      tags:
+        - haproxy
+      gather_facts:
+        parallel: yes
+    - import_role:
+        name: ubuntu-haproxy
+      tags:
+        - haproxy
+      vars:
+        haproxy_tls_enable: false
+        haproxy_frontend_mode: tcp
+        haproxy_frontend_tcp_port: 6443
+        haproxy_backend_mode: tcp
+        haproxy_backend_port: 6443
+        haproxy_backend_balance: leastconn
+        haproxy_backend_servers: "{{groups['k8s_manager']|list}}"
+        haproxy_app_domain_name: "{{network_domain_name}}"
+
+#
+# Install k8s etcd cluster (run on all etcd nodes)
+#
+
+- hosts: k8s_etcd
+  tasks:
+    - name: Update Facts
+      tags:
+        - k8s-etcd
+      gather_facts:
+        parallel: yes
+    - import_role:
+        name: ubuntu-k8s-etcd
+      tags:
+        - k8s-etcd
+      vars:
+        k8s_etcd_nodes: "{{groups['k8s_etcd']}}"
+
+
+#
+# Install k8s manager and workers (run on all k8s cluster nodes)
+#
+
+- hosts: k8s_manager:k8s_worker
+  tasks:
+    - name: Update Facts
+      tags:
+        - k8s-install
+      gather_facts:
+        parallel: yes
+    - import_role:
+        name: ubuntu-k8s-install
+      tags:
+        - k8s-install
+      vars:
+        k8s_etcd_nodes: "{{groups['k8s_etcd']}}"
+        k8s_manager_nodes: "{{groups['k8s_manager']}}"
+        k8s_worker_nodes: "{{groups['k8s_worker']}}"
+        load_balancer_dns: "{{groups['k8s_haproxy'][0]}}"
+
+#
+# Setup k8s ingress with haproxy (run on one k8s manager)
+#
+
+- hosts: k8s_manager
+  tasks:
+    - name: Update Facts
+      tags:
+        - k8s-ingress
+      gather_facts:
+        parallel: yes
+    - import_role:
+        name: ubuntu-k8s-ingress
+      run_once: true
+      tags:
+        - k8s-ingress
+      vars:
+        haproxy_ssl_generate: true
+        haproxy_ssl_domain: "{{network_domain_name}}"
+        haproxy_ssl_local_save: "./certs"
+
+#
+# Setup k8s to use Gluster for storage (run on all k8s cluster nodes)
+#
+
+- hosts: k8s_manager:k8s_worker
+  tasks:
+    - name: Update Facts
+      tags:
+        - k8s-storage
+      gather_facts:
+        parallel: yes
+    - import_role:
+        name: ubuntu-k8s-storage
+      tags:
+        - k8s-storage
+      vars:
+        k8s_controller: "{{groups['k8s_manager'][0]}}"
+        glusterfs_namespace: glusterfs
+        glusterfs_services_name: glusterfs
+        glusterfs_nodes: "{{groups['k8s_glusterfs']|list}}"
+        glusterfs_heketi_gfs_volume: heketi_data
+        heketi_namespace: glusterfs
+        heketi_services_name: heketi
+        heketi_user_secret: "{{default_password}}"
+        heketi_admin_secret: "{{default_password}}"
+
+        #
+        # storage class config
+        #
+
+        # type of gluster volume to use
+        heketi_volumetype: "replicate:{{groups['k8s_glusterfs']|list|length}}"
+        # Reatain or Delete when dynamic volume no longer has claims
+        heketi_reclaimPolicy: Delete
+        # permit volume to be expanded after creating
+        heketi_allowVolumeExpansion: true
+
+        #
+        # heketi topology config
+        #
+
+        # uninitialized block devices on glusterfs nodes
+        heketi_xfs_devices:
+          - /dev/sdc
+        # initialize device when adding?
+        heketi_destroy_device: true
+
+#
+# Setup k8s dashboard (run on one k8s manager)
+#
+
+- hosts: k8s_manager
+  tasks:
+    - name: Update Facts
+      tags:
+        - k8s-dashboard
+      gather_facts:
+        parallel: yes
+    - import_role:
+        name: ubuntu-k8s-dashboard
+      run_once: true
+      tags:
+        - k8s-dashboard
+      vars:
+        dashboard_namespace: kubernetes-dashboard
+        dashboard_services_name: kubernetes-dashboard
+        dashboard_fqdn: dashboard.{{network_domain_name}}
+        dashboard_tls_secret: "{{network_domain_name}}.tls-secret"
+#
+# Utility Playbooks
+#
+
+# Unset Install Facts
+- hosts: all
+  tasks:
+    - name: Update Facts "k8s_enabled" to false
+      set_fact:
+        cacheable: yes
+        k8s_enabled: false
+      tags:
+        - never
+        - reset-install
+
+# Upgrade ALL apt packages on host
+- hosts: all
+  tasks:
+    - import_role:
+        name: ubuntu-common
+      tags:
+        - never
+        - ubuntu-update
+      vars:
+        ubuntu_apt_upgrade: true
+        ubuntu_apt_reboot: true
+
+
+# Setup kubectl on localhost for connectivity to cluster
+- hosts: localhost
+  tasks:
+    - name: Remove existing kubectl config
+      tags:
+        - never
+        - local-kube-config
+      file:
+        path: "{{lookup('env','HOME')}}/.kube"
+        state: absent
+    - name: Copy kubectl config from k8s manager node to localhost
+      tags:
+        - never
+        - local-kube-config
+      shell: |
+        scp -q \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          -i {{playbook_dir}}/{{ansible_ssh_private_key_file}} \
+          -r {{ansible_user}}@{{groups['k8s_manager'][0]}}:/home/{{ansible_user}}/.kube \
+          {{lookup('env','HOME')}}/

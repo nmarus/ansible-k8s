@@ -1,0 +1,20 @@
+---
+- name: Clear all snapshots
+  vars:
+    vm_name: "{{hostvars[inventory_hostname].ansible_facts.vm_name}}"
+    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+  local_action:
+    module: vmware_guest_snapshot
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    datacenter: "{{datacenter}}"
+    folder: "/{{datacenter}}/vm/"
+    name: "{{vm_name}}"
+    state: remove_all
+
+- name: Clear cached fact for lastSnapshots variable
+  set_fact:
+    cacheable: yes
+    lastSnapshots: []

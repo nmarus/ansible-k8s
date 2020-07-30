@@ -1,0 +1,22 @@
+---
+- name: Verify directory "/data/heketi/.ssh" exists
+  become: true
+  become_method: sudo
+  file:
+    path: /data/heketi/.ssh
+    state: directory
+    mode: 0755
+
+- name: Check if /data/heketi/.ssh/id_rsa exists
+  stat:
+    path: /data/heketi/.ssh/id_rsa
+  register: id_rsa
+
+- set_fact:
+    heketi_ssh_created: "{{id_rsa.stat.exists is defined and id_rsa.stat.exists}}"
+
+- name: Create ssh keys for heketi
+  when: not heketi_ssh_created
+  become: true
+  become_method: sudo
+  shell: ssh-keygen -t rsa -b 2048 -f /data/heketi/.ssh/id_rsa -q -N ""

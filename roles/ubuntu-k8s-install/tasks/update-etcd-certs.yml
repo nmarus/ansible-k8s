@@ -1,0 +1,30 @@
+---
+- name: Copy ca.crt to k8s host
+  become_method: sudo
+  become: true
+  copy:
+    src: /tmp/k8s_etcd/{{k8s_manager_nodes[0]}}/etc/kubernetes/pki/etcd/ca.crt
+    dest: /etc/kubernetes/pki/etcd/
+    mode: 0644
+    owner: root
+    group: root
+
+- name: Copy apiserver-etcd-client.crt to k8s host
+  become_method: sudo
+  become: true
+  copy:
+    src: /tmp/k8s_etcd/{{k8s_manager_nodes[0]}}/etc/kubernetes/pki/apiserver-etcd-client.crt
+    dest: /etc/kubernetes/pki/
+    mode: 0644
+    owner: root
+    group: root
+
+- name: Copy apiserver-etcd-client.key to k8s host
+  become_method: sudo
+  become: true
+  copy:
+    src: /tmp/k8s_etcd/{{k8s_manager_nodes[0]}}/etc/kubernetes/pki/apiserver-etcd-client.key
+    dest: /etc/kubernetes/pki/
+    mode: 0644
+    owner: root
+    group: root

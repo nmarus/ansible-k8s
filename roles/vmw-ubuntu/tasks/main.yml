@@ -1,0 +1,147 @@
+---
+- name: Update cached facts for {{network_ip_address}}
+  delegate_to: "{{network_ip_address}}"
+  delegate_facts: true
+  set_fact:
+    cacheable: yes
+    vm_name: "{{vm_name}}"
+
+- name: Get status of deployed Virtual Machines
+  local_action:
+    module: vmware_vm_info
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    vm_type: vm
+  register: vm_info
+
+- name: Load SSH pub key
+  slurp:
+    src: "{{ansible_ssh_public_key_file}}"
+  register: public_key
+
+- name: "{{vm_name}} ({{network_ip_address}}) Generate userdata"
+  when: "vm_name not in (vm_info.virtual_machines | map(attribute='guest_name'))"
+  set_fact:
+    vm_userdata: |
+      #cloud-config
+      chpasswd:
+        expire: false
+        list: |
+          ubuntu:{{root_password}}
+      users:
+        - default
+        - name: ubuntu
+          ssh-authorized-keys:
+            - {{public_key.content | b64decode}}
+          sudo: ALL=(ALL) NOPASSWD:ALL
+          groups: sudo
+          shell: /bin/bash
+      package_upgrade: false
+      write_files:
+        - path: /etc/netplan/01-netcfg.yaml
+          content: |
+            network:
+              version: 2
+              renderer: networkd
+              ethernets:
+                ens192:
+                  dhcp4: no
+                  addresses: [{{network_ip_address}}/{{network_subnetprefix}}]
+                  gateway4: {{network_gateway}}
+                  nameservers:
+                    addresses: [{{network_dns_servers}}]
+      runcmd:
+        # remove dhcp interface
+        - ls /etc/netplan | grep -P "^0[02-9].*$" | sed -E 's,([-_a-zA-Z0-9]*\.yaml),/etc/netplan/\1,g' | xargs -d"\n" rm &> /dev/null
+        - ls /etc/netplan | grep -P "^[1-9].*$" | sed -E 's,([-_a-zA-Z0-9]*\.yaml),/etc/netplan/\1,g' | xargs -d"\n" rm &> /dev/null
+        # remove floppy
+        - rmmod floppy
+        - echo "blacklist floppy" | tee /etc/modprobe.d/blacklist-floppy.conf
+        - dpkg-reconfigure initramfs-tools
+        # fix swap
+        - swapoff --all
+        - sed -ri '/\sswap\s/s/^#?/#/' /etc/fstab
+        # fix ip tables
+        - sysctl net.bridge.bridge-nf-call-iptables=1
+        - sysctl net.bridge.bridge-nf-call-ip6tables=1
+        # fix vm tools
+        - 'echo "disable_vmware_customization: false" >> /etc/cloud/cloud.cfg'
+        # fix temp permissions
+        - sed -i 's/^D \/tmp 1777 root root -/#D \/tmp 1777 root root -/g' /usr/lib/tmpfiles.d/tmp.conf
+        # set new machine id
+        - echo -n > /etc/machine-id
+      power_state:
+        timeout: 30
+        mode: reboot
+
+- name: "{{vm_name}} ({{network_ip_address}}) Creating Virtual Machine"
+  when: "vm_name not in (vm_info.virtual_machines | map(attribute='guest_name'))"
+  local_action:
+    module: vmware_deploy_ovf
+    name: "{{vm_name}}"
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    disk_provisioning: "{{vcenter_disk_provisioning}}"
+    ovf: "{{ova_path}}"
+    networks:
+      VM Network: "{{vcenter_network}}"
+    datastore: "{{vcenter_datastore}}"
+    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+    cluster: "{{vcenter_cluster if vcenter_cluster is defined else None}}"
+    fail_on_spec_warnings: false
+    allow_duplicates: false
+    power_on: false
+    inject_ovf_env: true
+    properties:
+      hostname: "{{vm_hostname}}"
+      user-data: "{{vm_userdata | string | b64encode}}"
+
+- name: "{{vm_name}} ({{network_ip_address}}) Customize Virtual Machine"
+  when: "vm_name not in (vm_info.virtual_machines | map(attribute='guest_name'))"
+  local_action:
+    module: vmware_guest
+    name: "{{vm_name}}"
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    datastore: "{{vcenter_datastore}}"
+    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+    cluster: "{{vcenter_cluster if vcenter_cluster is defined else None}}"
+    state: present
+    hardware:
+      version: 10
+      boot_firmware: efi
+      mem_reservation:  "{{hw_memory}}"
+      memory_mb: "{{hw_memory}}"
+      num_cpus: "{{hw_cpus}}"
+    disk:
+      - size_gb: "{{hw_disk}}"
+
+- name: "{{vm_name}} ({{network_ip_address}}) Perform Initial-Boot configuration"
+  local_action:
+    module: vmware_guest
+    name: "{{vm_name}}"
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    datastore: "{{vcenter_datastore}}"
+    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+    cluster: "{{vcenter_cluster if vcenter_cluster is defined else None}}"
+    state: poweredon
+    wait_for_ip_address: false
+
+- name: "{{vm_name}} ({{network_ip_address}}) Waiting for VM to finish configuration..."
+  local_action:
+    module: wait_for
+    host: "{{network_ip_address}}"
+    port: 22
+    state: started
+    delay: 0
+    sleep: 1
+    timeout: 600

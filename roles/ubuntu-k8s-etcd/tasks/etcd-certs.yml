@@ -1,0 +1,38 @@
+---
+- name: Check if etcd ca cert is already generated
+  stat:
+    path: /etc/kubernetes/pki/etcd/ca.crt
+  register: etcd_ca_crt
+
+- name: Check if etcd ca key is already generated
+  stat:
+    path: /etc/kubernetes/pki/etcd/ca.key
+  register: etcd_ca_key
+
+- name: Generate the certificate authority if cert or key is not found
+  when: etcd_ca_crt.stat.exists == false or etcd_ca_key.stat.exists == false
+  become: true
+  become_method: sudo
+  shell: kubeadm init phase certs etcd-ca
+
+- name: Create certificates for members
+  become: true
+  become_method: sudo
+  shell: |
+    kubeadm init phase certs etcd-server --config=/tmp/k8s_etcd/{{k8s_etcd_nodes[ansible_loop.revindex0]}}/kubeadmcfg.yaml
+    kubeadm init phase certs etcd-peer --config=/tmp/k8s_etcd/{{k8s_etcd_nodes[ansible_loop.revindex0]}}/kubeadmcfg.yaml
+    kubeadm init phase certs etcd-healthcheck-client --config=/tmp/k8s_etcd/{{k8s_etcd_nodes[ansible_loop.revindex0]}}/kubeadmcfg.yaml
+    kubeadm init phase certs apiserver-etcd-client --config=/tmp/k8s_etcd/{{k8s_etcd_nodes[ansible_loop.revindex0]}}/kubeadmcfg.yaml
+
+    {% if ansible_loop.revindex0 > 0 %}
+    cp -R /etc/kubernetes/pki /tmp/k8s_etcd/{{k8s_etcd_nodes[ansible_loop.revindex0]}}/
+    # cleanup non-reusable certificates
+    find /etc/kubernetes/pki -not -name ca.crt -not -name ca.key -type f -delete
+    {% else %}
+    # clean up certs that should not be copied off this host
+    find /tmp/k8s_etcd/{{k8s_etcd_nodes[ansible_loop.revindex0]}} -name ca.key -type f -delete
+    find /tmp/k8s_etcd/{{k8s_etcd_nodes[ansible_loop.revindex0]}} -name ca.key -type f -delete
+    {% endif %}
+  loop_control:
+    extended: yes
+  loop: "{{k8s_etcd_nodes}}"
