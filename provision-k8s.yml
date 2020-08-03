@@ -208,6 +208,50 @@
         heketi_destroy_device: true
 
 #
+# Setup k8s descheduler (run on one k8s manager)
+#
+
+- hosts: k8s_manager
+  tasks:
+    - name: Update Facts
+      tags:
+        - k8s-descheduler
+      gather_facts:
+        parallel: yes
+    - import_role:
+        name: ubuntu-k8s-descheduler
+      run_once: true
+      tags:
+        - k8s-descheduler
+      vars:
+        descheduler_rebalance_minutes: 5 # every 5 minutes
+        # https://github.com/kubernetes-sigs/descheduler
+        descheduler_strategy_RemoveDuplicates:
+          enabled: true
+        descheduler_strategy_RemovePodsViolatingInterPodAntiAffinity:
+          enabled: true
+        descheduler_strategy_RemovePodsViolatingNodeTaints:
+          enabled: true
+        descheduler_strategy_LowNodeUtilization:
+          enabled: true
+          params:
+            nodeResourceUtilizationThresholds:
+              thresholds:
+                cpu : 20
+                memory: 20
+                pods: 20
+              targetThresholds:
+                cpu : 50
+                memory: 50
+                pods: 50
+        descheduler_strategy_RemovePodsHavingTooManyRestarts:
+          enabled: true
+          params:
+            podsHavingTooManyRestarts:
+              podRestartThreshold: 100
+              includingInitContainers: true
+
+#
 # Setup k8s dashboard (run on one k8s manager)
 #
 

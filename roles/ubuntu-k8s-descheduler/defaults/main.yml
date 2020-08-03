@@ -1,0 +1,18 @@
+---
+descheduler_services_name: kubernetes-descheduler
+descheduler_rebalance_minutes: 2
+descheduler_rebalance_concurrency: Forbid
+descheduler_strategy_RemoveDuplicates:
+  enabled: false
+descheduler_strategy_LowNodeUtilization:
+  enabled: false
+descheduler_strategy_RemovePodsViolatingInterPodAntiAffinity:
+  enabled: false
+descheduler_strategy_RemovePodsViolatingNodeAffinity:
+  enabled: false
+descheduler_strategy_RemovePodsViolatingNodeTaints:
+  enabled: false
+descheduler_strategy_RemovePodsHavingTooManyRestarts:
+  enabled: false
+descheduler_strategy_PodLifeTime:
+  enabled: false

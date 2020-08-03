@@ -1,1 +1,3 @@
 ---
+dashboard_namespace: kubernetes-dashboard
+dashboard_services_name: kubernetes-dashboard

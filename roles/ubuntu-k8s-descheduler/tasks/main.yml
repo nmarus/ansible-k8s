@@ -1,0 +1,45 @@
+---
+- name: Verify config directory /ansible_generated_configs
+  become_method: sudo
+  become: true
+  file:
+    path: /ansible_generated_configs
+    state: directory
+
+- name: Create /ansible_generated_configs/descheduler-service.yaml
+  become: true
+  become_method: sudo
+  vars:
+    descheduler_rebalance_schedule: "*/{{descheduler_rebalance_minutes}} * * * *" # every n minutes
+    descheduler_rebalance_policy:
+      apiVersion: descheduler/v1alpha1
+      kind: DeschedulerPolicy
+      strategies:
+        RemoveDuplicates: "{{descheduler_strategy_RemoveDuplicates}}"
+        LowNodeUtilization: "{{descheduler_strategy_LowNodeUtilization}}"
+        RemovePodsViolatingInterPodAntiAffinity: "{{descheduler_strategy_RemovePodsViolatingInterPodAntiAffinity}}"
+        RemovePodsViolatingNodeAffinity: "{{descheduler_strategy_RemovePodsViolatingNodeAffinity}}"
+        RemovePodsViolatingNodeTaints: "{{descheduler_strategy_RemovePodsViolatingNodeTaints}}"
+        RemovePodsHavingTooManyRestarts: "{{descheduler_strategy_RemovePodsHavingTooManyRestarts}}"
+        PodLifeTime: "{{descheduler_strategy_PodLifeTime}}"
+  template:
+    src: descheduler-service-yaml.j2
+    dest: /ansible_generated_configs/descheduler-service.yaml
+    mode: 0644
+
+- name: Fetch generated /ansible_generated_configs/descheduler-service.yaml
+  become_method: sudo
+  become: true
+  fetch:
+    src: /ansible_generated_configs/descheduler-service.yaml
+    dest: "{{playbook_dir}}/generated"
+
+- name: Create k8s descheduler service
+  shell: kubectl apply -f /ansible_generated_configs/descheduler-service.yaml
+
+- name: Clean up temp files in /ansible_generated_configs
+  become_method: sudo
+  become: true
+  file:
+    path: /ansible_generated_configs
+    state: absent
