@@ -125,10 +125,10 @@ metadata:
 spec:
   tls:
     - hosts:
-      - nginx.lab.local
-      secretName: lab.local.tls-cert
+      - nginx.domain.local
+      secretName: domain.local.tls-cert
   rules:
-    - host: nginx.lab.local
+    - host: nginx.domain.local
       http:
         paths:
           - path: /

@@ -192,7 +192,7 @@
 
         # type of gluster volume to use
         heketi_volumetype: "replicate:{{groups['k8s_glusterfs']|list|length}}"
-        # Reatain or Delete when dynamic volume no longer has claims
+        # Retain or Delete when dynamic volume no longer has claims
         heketi_reclaimPolicy: Delete
         # permit volume to be expanded after creating
         heketi_allowVolumeExpansion: true
