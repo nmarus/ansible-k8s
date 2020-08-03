@@ -4,3 +4,4 @@ pod_network_cidr: 10.244.0.0/16
 service_network_cidr: 10.96.0.0/12
 cluster_dns_domain: cluster.local
 calicoctl_version: 3.15.1
+enable_default_networking_policy: false

@@ -1,6 +1,7 @@
 ---
 - name: Get vm-name from hostvars
   set_fact:
+    cacheable: yes
     vm_name: "{{hostvars[inventory_hostname].ansible_facts.vm_name}}"
 
 - name: Find snapshots in hostvars

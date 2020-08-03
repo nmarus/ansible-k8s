@@ -1,0 +1,151 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nginx-pvc
+spec:
+  resources:
+    requests:
+      storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  storageClassName: glusterfs
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  myvar1: hello world
+  myvar2: "2020"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    run: nginx
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+  selector:
+    run: nginx
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  selector:
+    matchLabels:
+      run: nginx
+  replicas: 3
+  minReadySeconds: 10
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: nginx
+          image: nginx
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: MY_VAR1
+              valueFrom:
+                configMapKeyRef:
+                  name: nginx-config
+                  key: myvar1
+            - name: MY_VAR2
+              valueFrom:
+                configMapKeyRef:
+                  name: nginx-config
+                  key: myvar2
+          volumeMounts:
+            - name: glusterfsvol
+              mountPath: /mnt/nginx
+              subPath: nginx
+            - name: configmapvol
+              mountPath: /etc/config
+          startupProbe:
+            failureThreshold: 30
+            periodSeconds: 10
+            tcpSocket:
+              # host: <defaults to pod ip>
+              port: http
+          readinessProbe: # marks not ready when failure threshold is hit
+            initialDelaySeconds: 30
+            failureThreshold: 2
+            successThreshold: 2
+            periodSeconds: 5
+            timeoutSeconds: 5
+            httpGet:
+              # host: <defaults to pod ip>
+              # httpHeaders:
+              #   - name: headerprop1
+              #     value: headervalue1
+              #   - name: headerprop2
+              #     value: headervalue2
+              scheme: HTTP
+              path: /
+              port: http
+          livenessProbe: # restarts pod when failure threshold is hit
+            initialDelaySeconds: 30
+            failureThreshold: 2
+            successThreshold: 1 # must be 1 for livenessProbe
+            periodSeconds: 10
+            timeoutSeconds: 5
+            exec:
+              command:
+                - curl
+                - http://localhost
+      volumes:
+        - name: glusterfsvol
+          persistentVolumeClaim:
+            claimName: nginx-pvc
+        - name: configmapvol
+          configMap:
+            name: nginx-config
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  namespace: default
+spec:
+  tls:
+    - hosts:
+      - nginx.lab.local
+      secretName: lab.local.tls-cert
+  rules:
+    - host: nginx.lab.local
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: nginx
+              servicePort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nginx-policy
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      run: nginx
+  ingress:
+    - {}
+  policyTypes:
+    - Ingress

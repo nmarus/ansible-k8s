@@ -1,7 +1,11 @@
 ---
 - name: Gather meta data for snapshot generation
   set_fact:
+    cacheable: yes
     vm_name: "{{hostvars[inventory_hostname].ansible_facts.vm_name}}"
+
+- name: Gather meta data for snapshot generation
+  set_fact:
     snapshot_prefix: "{{now(utc=True).strftime('%Y%m%dT%H%M%S%f')}}"
 
 - name: Generate snapshot name

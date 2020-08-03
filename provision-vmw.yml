@@ -151,6 +151,15 @@
 # Utility Playbooks
 #
 
+# Update snapshot inventory for all managed virtual machines
+- hosts: all
+  tasks:
+    - import_role:
+        name: vmw-snapshot-inventory
+      tags:
+        - never
+        - snapshot-inventory
+
 # Create NEW snapshot for all managed virtual machines
 - hosts: all
   tasks:

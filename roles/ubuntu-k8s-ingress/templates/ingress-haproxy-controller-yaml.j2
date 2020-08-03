@@ -202,31 +202,31 @@ spec:
       tolerations:
         - operator: Exists
       containers:
-      - name: haproxy-ingress
-        image: quay.io/jcmoraisjr/haproxy-ingress
-        args:
-          - --configmap={{haproxy_controller_namespace}}/haproxy-ingress
-          - --default-backend-service={{haproxy_controller_namespace}}/haproxy-default-backend
-          - --default-ssl-certificate={{haproxy_controller_namespace}}/tls-secret
-        ports:
-          - name: http
-            containerPort: 80
-          - name: https
-            containerPort: 443
-          - name: stat
-            containerPort: 1936
-          - name: ingress-stats
-            containerPort: 10254
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 10253
-        env:
-          - name: POD_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.name
-          - name: POD_NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
+        - name: haproxy-ingress
+          image: quay.io/jcmoraisjr/haproxy-ingress
+          args:
+            - --configmap={{haproxy_controller_namespace}}/haproxy-ingress
+            - --default-backend-service={{haproxy_controller_namespace}}/haproxy-default-backend
+            - --default-ssl-certificate={{haproxy_controller_namespace}}/tls-secret
+          ports:
+            - name: http
+              containerPort: 80
+            - name: https
+              containerPort: 443
+            - name: stat
+              containerPort: 1936
+            - name: ingress-stats
+              containerPort: 10254
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10253
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace

@@ -1,0 +1,56 @@
+- name: Gather meta data for snapshot generation
+  set_fact:
+    cacheable: yes
+    vm_name: "{{hostvars[inventory_hostname].ansible_facts.vm_name}}"
+
+- name: Gather snapshot information about {{inventory_hostname}}
+  vars:
+    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+  local_action:
+    module: vmware_guest_snapshot_info
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    datacenter: "{{datacenter}}"
+    folder: "/{{datacenter}}/vm/"
+    name: "{{vm_name}}"
+  register: snapshot_info
+
+- name: Create lastSnapshots fact array if it does not exist
+  when: hostvars[inventory_hostname].ansible_facts.lastSnapshots is not defined
+  set_fact:
+    cacheable: yes
+    lastSnapshots: []
+
+- name: Push current snapshot name to lastSnapshots array
+  var:
+    snapshot_name: "{{snapshot_info.guest_snapshots.current_snapshot.name}}"
+  set_fact:
+    cacheable: yes
+    lastSnapshots: "{{((hostvars[inventory_hostname].ansible_facts.lastSnapshots | list) + ([snapshot_name] | list)) | unique | list}}"
+
+# ok: [10.100.100.66] => {
+#     "snapshot_info": {
+#         "changed": false,
+#         "failed": false,
+#         "guest_snapshots": {
+#             "current_snapshot": {
+#                 "creation_time": "2020-07-29T16:56:02.650418+00:00",
+#                 "description": "Anisible Snapshot 20200729T165445619702-k8s-manager-3",
+#                 "id": 1,
+#                 "name": "20200729T165445619702-k8s-manager-3",
+#                 "state": "poweredOn"
+#             },
+#             "snapshots": [
+#                 {
+#                     "creation_time": "2020-07-29T16:56:02.650418+00:00",
+#                     "description": "Anisible Snapshot 20200729T165445619702-k8s-manager-3",
+#                     "id": 1,
+#                     "name": "20200729T165445619702-k8s-manager-3",
+#                     "state": "poweredOn"
+#                 }
+#             ]
+#         }
+#     }
+# }

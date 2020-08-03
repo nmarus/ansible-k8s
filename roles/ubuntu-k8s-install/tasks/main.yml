@@ -5,6 +5,9 @@
 - include_tasks: networking-calico.yml
   when: inventory_hostname == k8s_manager_nodes[0]
 
+- include_tasks: networking-policy.yml
+  when: inventory_hostname == k8s_manager_nodes[0] and enable_default_networking_policy
+
 - include_tasks: get-discovery-yaml.yml
   when: inventory_hostname == k8s_manager_nodes[0]
 
