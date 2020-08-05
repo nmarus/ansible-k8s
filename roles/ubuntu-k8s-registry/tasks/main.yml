@@ -1,0 +1,45 @@
+---
+- include_tasks: registry-namespace.yml
+
+- name: Check if secret exists
+  shell: kubectl -n {{registry_namespace}} get secret {{registry_fqdn}}.tls-secret
+  no_log: true
+  ignore_errors: true
+  register: secret_status
+
+- name: Update host facts for secret status
+  set_fact:
+    secret_missing: "{{secret_status.rc != 0}}"
+
+- include_tasks: registry-generate-ssl.yml
+  when: secret_missing and registry_ssl_generate and registry_fqdn
+  vars:
+    ssl_filename: "{{registry_fqdn}}"
+    ssl_cn_name: "{{registry_fqdn}}"
+    ssl_subj_opt: "/C=US/ST=SELF/L=SIGNED/O=SELF_SIGNED/OU=SELF_SIGNED"
+
+- include_tasks: registry-custom-ssl.yml
+  when: secret_missing
+  vars:
+    ssl_key_path: "{{registry_ssl_key_path}}"
+    ssl_crt_path: "{{registry_ssl_cert_path}}"
+    secret_name: "{{registry_fqdn}}.tls-secret"
+    secret_namespace: "{{registry_namespace}}"
+
+- include_tasks: registry-save-ssl.yml
+  when: registry_ssl_local_save is defined
+  vars:
+    secret_name: "{{registry_fqdn}}.tls-secret"
+    secret_namespace: "{{registry_namespace}}"
+    ssl_save_dir: "{{registry_ssl_local_save}}"
+
+- include_tasks: registry-service.yml
+
+- name: Determine nodePort for registry service
+  register: getNodePort
+  shell: kubectl -n {{registry_namespace}} get service {{registry_services_name}} -o json | jq '.spec.ports[0].nodePort'
+
+- name: Save fact with nodePort for registry service
+  set_fact:
+    registry_nodePort: "{{getNodePort.stdout}}"
+    cacheable: yes

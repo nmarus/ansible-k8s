@@ -5,14 +5,6 @@
 
 - hosts: all
   tasks:
-    - name: Update Facts
-      tags:
-        - common
-        - docker
-        - b8s-base
-        - prereqs
-      gather_facts:
-        parallel: yes
     - import_role:
         name: ubuntu-common
       tags:
@@ -24,6 +16,7 @@
           - curl
           - wget
           - vim
+          - jq
     - import_role:
         name: ubuntu-docker-deploy
       tags:
@@ -41,11 +34,6 @@
 
 - hosts: k8s_glusterfs
   tasks:
-    - name: Update Facts
-      tags:
-        - glusterfs
-      gather_facts:
-        parallel: yes
     - import_role:
         name: ubuntu-glusterfs
       tags:
@@ -59,11 +47,6 @@
 
 - hosts: k8s_glusterfs
   tasks:
-    - name: Update Facts
-      tags:
-        - heketi
-      gather_facts:
-        parallel: yes
     - import_role:
         name: ubuntu-heketi
       tags:
@@ -80,11 +63,6 @@
 
 - hosts: k8s_haproxy
   tasks:
-    - name: Update Facts
-      tags:
-        - haproxy
-      gather_facts:
-        parallel: yes
     - import_role:
         name: ubuntu-haproxy
       tags:
@@ -105,11 +83,6 @@
 
 - hosts: k8s_etcd
   tasks:
-    - name: Update Facts
-      tags:
-        - k8s-etcd
-      gather_facts:
-        parallel: yes
     - import_role:
         name: ubuntu-k8s-etcd
       tags:
@@ -124,11 +97,6 @@
 
 - hosts: k8s_manager:k8s_worker
   tasks:
-    - name: Update Facts
-      tags:
-        - k8s-install
-      gather_facts:
-        parallel: yes
     - import_role:
         name: ubuntu-k8s-install
       tags:
@@ -145,11 +113,6 @@
 
 - hosts: k8s_manager
   tasks:
-    - name: Update Facts
-      tags:
-        - k8s-ingress
-      gather_facts:
-        parallel: yes
     - import_role:
         name: ubuntu-k8s-ingress
       run_once: true
@@ -166,11 +129,6 @@
 
 - hosts: k8s_manager:k8s_worker
   tasks:
-    - name: Update Facts
-      tags:
-        - k8s-storage
-      gather_facts:
-        parallel: yes
     - import_role:
         name: ubuntu-k8s-storage
       tags:
@@ -213,15 +171,11 @@
 
 - hosts: k8s_manager
   tasks:
-    - name: Update Facts
-      tags:
-        - k8s-descheduler
-      gather_facts:
-        parallel: yes
     - import_role:
         name: ubuntu-k8s-descheduler
       run_once: true
       tags:
+        - never
         - k8s-descheduler
       vars:
         descheduler_rebalance_minutes: 5 # every 5 minutes
@@ -252,26 +206,40 @@
               includingInitContainers: true
 
 #
+# Setup k8s docker registry (run on one k8s manager)
+#
+
+- hosts: k8s_manager
+  tasks:
+    - import_role:
+        name: ubuntu-k8s-registry
+      run_once: true
+      tags:
+        - never
+        - k8s-registry
+      vars:
+        registry_ssl_generate: true
+        registry_ssl_domain: "registry.{{network_domain_name}}"
+        registry_ssl_local_save: "./certs"
+
+#
 # Setup k8s dashboard (run on one k8s manager)
 #
 
 - hosts: k8s_manager
   tasks:
-    - name: Update Facts
-      tags:
-        - k8s-dashboard
-      gather_facts:
-        parallel: yes
     - import_role:
         name: ubuntu-k8s-dashboard
       run_once: true
       tags:
+        - never
         - k8s-dashboard
       vars:
         dashboard_namespace: kubernetes-dashboard
         dashboard_services_name: kubernetes-dashboard
         dashboard_fqdn: dashboard.{{network_domain_name}}
         dashboard_tls_secret: "{{network_domain_name}}.tls-secret"
+
 #
 # Utility Playbooks
 #

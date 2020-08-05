@@ -1,0 +1,113 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{registry_namespace}}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{registry_services_name}}-pvc
+  namespace: {{registry_namespace}}
+spec:
+  resources:
+    requests:
+      storage: {{registry_volume_gb}}Gi
+  accessModes:
+    - ReadWriteMany
+  storageClassName: {{registry_storage_class}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{registry_services_name}}
+  labels:
+    run: {{registry_services_name}}
+  namespace: {{registry_namespace}}
+spec:
+  type: NodePort
+  ports:
+    - port: {{registry_port}}
+      targetPort: {{registry_port}}
+      protocol: TCP
+  selector:
+    run: {{registry_services_name}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{registry_services_name}}
+  namespace: {{registry_namespace}}
+spec:
+  selector:
+    matchLabels:
+      run: {{registry_services_name}}
+  replicas: 1
+  minReadySeconds: 10
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        run: {{registry_services_name}}
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: {{registry_services_name}}
+          image: registry:2
+          ports:
+            - name: http
+              containerPort: {{registry_port}}
+          env:
+            - name: REGISTRY_HTTP_ADDR
+              value: 0.0.0.0:{{registry_port}}
+            - name: REGISTRY_HTTP_TLS_CERTIFICATE
+              value: /certs/tls.crt
+            - name: REGISTRY_HTTP_TLS_KEY
+              value: /certs/tls.key
+          volumeMounts:
+            - name: glusterfsvol
+              mountPath: /var/lib/registry
+            - name: certvol
+              mountPath: /certs
+          startupProbe:
+            failureThreshold: 30
+            periodSeconds: 10
+            tcpSocket:
+              port: {{registry_port}}
+          readinessProbe:
+            failureThreshold: 1
+            successThreshold: 1
+            periodSeconds: 60
+            timeoutSeconds: 5
+            tcpSocket:
+              port: {{registry_port}}
+      volumes:
+        - name: glusterfsvol
+          persistentVolumeClaim:
+            claimName: {{registry_services_name}}-pvc
+        - name: certvol
+          secret:
+            secretName: {{registry_fqdn}}.tls-secret
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: {{registry_services_name}}-ingress
+  namespace: {{registry_namespace}}
+spec:
+  tls:
+    - hosts:
+      - {{registry_fqdn}}
+      secretName: {{registry_fqdn}}.tls-secret
+  rules:
+    - host: {{registry_fqdn}}
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: {{registry_services_name}}
+              servicePort: {{registry_port}}

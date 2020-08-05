@@ -1,41 +1,51 @@
 ---
 - include_tasks: haproxy-namespace.yml
 
+- name: Check if secret exists
+  shell: kubectl -n {{haproxy_controller_namespace}} get secret tls-secret
+  no_log: true
+  ignore_errors: true
+  register: secret_status1
+
+- name: Check if secret exists
+  shell: kubectl -n default get secret {{haproxy_ssl_domain}}.tls-secret
+  no_log: true
+  ignore_errors: true
+  register: secret_status2
+
+- name: Update host facts for secret status
+  set_fact:
+    secret_missing1: "{{secret_status1.rc != 0}}"
+    secret_missing2: "{{secret_status2.rc != 0}}"
+
 - include_tasks: haproxy-generate-ssl.yml
-  when: haproxy_ssl_generate and haproxy_ssl_domain
+  when: secret_missing1 and haproxy_ssl_generate and haproxy_ssl_domain
   vars:
     ssl_filename: "{{haproxy_ssl_domain}}"
     ssl_cn_name: "*.{{haproxy_ssl_domain}}"
     ssl_subj_opt: "/C=US/ST=SELF/L=SIGNED/O=SELF_SIGNED/OU=SELF_SIGNED"
 
-- name: Update host facts ssl certs
-  when: haproxy_ssl_generate and haproxy_ssl_domain
-  set_fact:
-    cacheable: yes
-    haproxy_ssl_cert_path: /tmp/k8s_tls/{{inventory_hostname}}/tmp/k8s_tls/{{haproxy_ssl_domain}}.crt
-    haproxy_ssl_key_path: /tmp/k8s_tls/{{inventory_hostname}}/tmp/k8s_tls/{{haproxy_ssl_domain}}.key
-
 - include_tasks: haproxy-custom-ssl.yml
-  when: haproxy_ssl_cert_path and haproxy_ssl_key_path
-  vars:
-    ssl_key_path: "{{haproxy_ssl_key_path}}"
-    ssl_crt_path: "{{haproxy_ssl_cert_path}}"
-    secret_name: "{{haproxy_ssl_domain}}.tls-secret"
-    secret_namespace: default
-
-- include_tasks: haproxy-custom-ssl.yml
-  when: haproxy_ssl_cert_path and haproxy_ssl_key_path
+  when: secret_missing1
   vars:
     ssl_key_path: "{{haproxy_ssl_key_path}}"
     ssl_crt_path: "{{haproxy_ssl_cert_path}}"
     secret_name: tls-secret
     secret_namespace: "{{haproxy_controller_namespace}}"
 
+- name: Copy "{{haproxy_controller_namespace}}/tls-secret" to "default/{{haproxy_ssl_domain}}.tls-secret"
+  when: secret_missing2
+  shell: |
+    kubectl -n {{haproxy_controller_namespace}} get secret tls-secret -o json --export \
+      | jq -r '.metadata.namespace = "default"' \
+      | jq -r '.metadata.name = "{{haproxy_ssl_domain}}.tls-secret"' \
+      | kubectl create -f -
+
 - include_tasks: haproxy-save-ssl.yml
   when: haproxy_ssl_local_save is defined
   vars:
-    ssl_key_path: "{{haproxy_ssl_key_path}}"
-    ssl_crt_path: "{{haproxy_ssl_cert_path}}"
+    secret_name: tls-secret
+    secret_namespace: "{{haproxy_controller_namespace}}"
     ssl_save_dir: "{{haproxy_ssl_local_save}}"
 
 - include_tasks: haproxy-controller.yml
@@ -49,19 +59,3 @@
 - include_tasks: haproxy-labels.yml
   vars:
     haproxynode: "{{haproxy_controller_namespace}}"
-
-- name: Cleanup remote temp files in /tmp/k8s_tls
-  become_method: sudo
-  become: true
-  file:
-    path: /tmp/k8s_tls
-    state: absent
-
-- name: Cleanup local temp files in /tmp/k8s_tls
-  run_once: true
-  become_method: sudo
-  become: true
-  local_action:
-    module: file
-    path: /tmp/k8s_tls
-    state: absent

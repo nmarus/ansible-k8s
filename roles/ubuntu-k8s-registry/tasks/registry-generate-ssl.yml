@@ -1,24 +1,24 @@
 ---
-- name: Remove any existing remote temp files in /tmp/k8s_tls
+- name: Remove any existing remote temp files in /tmp/registry_tls
   become_method: sudo
   become: true
   file:
-    path: /tmp/k8s_tls
+    path: /tmp/registry_tls
     state: absent
 
-- name: Remove any existing local temp files in /tmp/k8s_tls
+- name: Remove any existing local temp files in /tmp/registry_tls
   become_method: sudo
   become: true
   local_action:
     module: file
-    path: /tmp/k8s_tls
+    path: /tmp/registry_tls
     state: absent
 
-- name: Verify remote temp directory /tmp/k8s_tls exists
+- name: Verify remote temp directory /tmp/registry_tls exists
   become: true
   become_method: sudo
   file:
-    path: /tmp/k8s_tls
+    path: /tmp/registry_tls
     state: directory
     mode: 0755
 
@@ -26,7 +26,7 @@
   become: true
   become_method: sudo
   shell: |
-    cd /tmp/k8s_tls
+    cd /tmp/registry_tls
     openssl req -x509 -nodes \
       -days {{ssl_expire_days}} \
       -newkey rsa:{{ssl_key_size}} \
@@ -38,8 +38,8 @@
   become_method: sudo
   become: true
   fetch:
-    src: /tmp/k8s_tls/{{item}}
-    dest: /tmp/k8s_tls
+    src: /tmp/registry_tls/{{item}}
+    dest: /tmp/registry_tls
   with_items:
     - "{{ssl_filename}}.key"
     - "{{ssl_filename}}.crt"
@@ -47,12 +47,12 @@
 - name: Update host facts ssl certs
   set_fact:
     cacheable: yes
-    haproxy_ssl_cert_path: /tmp/k8s_tls/{{inventory_hostname}}/tmp/k8s_tls/{{haproxy_ssl_domain}}.crt
-    haproxy_ssl_key_path: /tmp/k8s_tls/{{inventory_hostname}}/tmp/k8s_tls/{{haproxy_ssl_domain}}.key
+    registry_ssl_cert_path: /tmp/registry_tls/{{inventory_hostname}}/tmp/registry_tls/{{registry_fqdn}}.crt
+    registry_ssl_key_path: /tmp/registry_tls/{{inventory_hostname}}/tmp/registry_tls/{{registry_fqdn}}.key
 
-- name: Cleanup remote temp files in /tmp/k8s_tls
+- name: Cleanup remote temp files in /tmp/registry_tls
   become_method: sudo
   become: true
   file:
-    path: /tmp/k8s_tls
+    path: /tmp/registry_tls
     state: absent

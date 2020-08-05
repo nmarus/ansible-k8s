@@ -1,16 +1,16 @@
 ---
-- name: Remove any existing remote temp files in /tmp/k8s_tls
+- name: Remove any existing remote temp files in /tmp/registry_tls
   become_method: sudo
   become: true
   file:
-    path: /tmp/k8s_tls
+    path: /tmp/registry_tls
     state: absent
 
-- name: Verify remote temp directory /tmp/k8s_tls exists
+- name: Verify remote temp directory /tmp/registry_tls exists
   become: true
   become_method: sudo
   file:
-    path: /tmp/k8s_tls
+    path: /tmp/registry_tls
     state: directory
     mode: 0755
 
@@ -19,34 +19,34 @@
   become: true
   copy:
     src: "{{ssl_crt_path}}"
-    dest: /tmp/k8s_tls/tls.crt
+    dest: /tmp/registry_tls/tls.crt
 
 - name: Copy SSL Key file to remote Host
   become_method: sudo
   become: true
   copy:
     src: "{{ssl_key_path}}"
-    dest: /tmp/k8s_tls/tls.key
+    dest: /tmp/registry_tls/tls.key
 
 - name: Create k8s Secret {{secret_name}}
   shell: |
-    cd /tmp/k8s_tls
+    cd /tmp/registry_tls
     kubectl -n {{secret_namespace}} create secret tls {{secret_name}} \
       --key tls.key \
       --cert tls.crt
 
-- name: Cleanup remote temp files in /tmp/k8s_tls
+- name: Cleanup remote temp files in /tmp/registry_tls
   become_method: sudo
   become: true
   file:
-    path: /tmp/k8s_tls
+    path: /tmp/registry_tls
     state: absent
 
-- name: Cleanup local temp files in /tmp/k8s_tls
+- name: Cleanup local temp files in /tmp/registry_tls
   run_once: true
   become_method: sudo
   become: true
   local_action:
     module: file
-    path: /tmp/k8s_tls
+    path: /tmp/registry_tls
     state: absent

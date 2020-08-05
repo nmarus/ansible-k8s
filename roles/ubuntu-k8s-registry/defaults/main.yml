@@ -1,0 +1,16 @@
+---
+registry_services_name: docker-registry
+registry_namespace: docker-registry
+registry_volume_gb: 10
+registry_storage_class: glusterfs
+registry_port: 5000
+registry_fqdn: registry.lab.local
+
+registry_ssl_generate: true
+
+ssl_subj_opt: ''
+ssl_key_size: 2048
+ssl_expire_days: 365
+
+
+# registry_ssl_local_save
