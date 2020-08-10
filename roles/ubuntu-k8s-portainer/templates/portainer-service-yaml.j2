@@ -1,0 +1,90 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{portainer_namespace}}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{portainer_services_name}}
+  namespace: {{portainer_namespace}}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{portainer_services_name}}-clusteradmin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: {{portainer_services_name}}
+    namespace: {{portainer_namespace}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{portainer_services_name}}
+  namespace: {{portainer_namespace}}
+  labels:
+    io.portainer.kubernetes.application.stack: {{portainer_services_name}}
+spec:
+  selector:
+    portainer: {{portainer_services_name}}
+  ports:
+    - name: http
+      protocol: TCP
+      port: 9000
+      targetPort: 9000
+    - name: edge
+      protocol: TCP
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{portainer_services_name}}
+  namespace: {{portainer_namespace}}
+  labels:
+    io.portainer.kubernetes.application.stack: {{portainer_services_name}}
+spec:
+  selector:
+    matchLabels:
+      portainer: {{portainer_services_name}}
+  template:
+    metadata:
+      labels:
+        portainer: {{portainer_services_name}}
+    spec:
+      serviceAccountName: {{portainer_services_name}}
+      containers:
+        - name: {{portainer_services_name}}
+          image: portainer/portainer-k8s-beta:linux-amd64
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9000
+              protocol: TCP
+            - containerPort: 8000
+              protocol: TCP
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: {{portainer_services_name}}-ingress
+  namespace: {{portainer_namespace}}
+spec:
+  tls:
+    - hosts:
+      - {{portainer_fqdn}}
+      secretName: {{portainer_tls_secret}}
+  rules:
+    - host: {{portainer_fqdn}}
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: {{portainer_services_name}}
+              servicePort: 9000

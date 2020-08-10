@@ -1,0 +1,32 @@
+---
+- name: Verify config directory /ansible_generated_configs
+  become_method: sudo
+  become: true
+  file:
+    path: /ansible_generated_configs
+    state: directory
+
+- name: Create /ansible_generated_configs/portainer-service.yaml
+  become: true
+  become_method: sudo
+  template:
+    src: portainer-service-yaml.j2
+    dest: /ansible_generated_configs/portainer-service.yaml
+    mode: 0644
+
+- name: Fetch generated /ansible_generated_configs/portainer-service.yaml
+  become_method: sudo
+  become: true
+  fetch:
+    src: /ansible_generated_configs/portainer-service.yaml
+    dest: "{{playbook_dir}}/generated"
+
+- name: Apply /ansible_generated_configs/portainer-service.yaml
+  shell: kubectl apply -f /ansible_generated_configs/portainer-service.yaml
+
+- name: Clean up temp files in /ansible_generated_configs
+  become_method: sudo
+  become: true
+  file:
+    path: /ansible_generated_configs
+    state: absent

@@ -260,6 +260,23 @@
         dashboard_tls_secret: "{{network_domain_name}}.tls-secret"
 
 #
+# Setup k8s portainer (run on one k8s manager)
+#
+
+- hosts: k8s_manager
+  tasks:
+    - import_role:
+        name: ubuntu-k8s-portainer
+      run_once: true
+      tags:
+        - never
+        - k8s-portainer
+      vars:
+        portainer_namespace: portainer
+        portainer_services_name: portainer
+        portainer_fqdn: portainer.{{network_domain_name}}
+        portainer_tls_secret: "{{network_domain_name}}.tls-secret"
+#
 # Utility Playbooks
 #
 
