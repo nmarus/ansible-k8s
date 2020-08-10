@@ -1,3 +1,53 @@
+# ---
+# apiVersion: storage.k8s.io/v1
+# kind: StorageClass
+# metadata:
+#   name: local-storage
+# provisioner: kubernetes.io/no-provisioner
+# volumeBindingMode: WaitForFirstConsumer
+# ---
+# apiVersion: v1
+# kind: PersistentVolume
+# metadata:
+#   name: local-pv
+#   labels:
+#     local-storage: "k8s-manager-1"
+# spec:
+#   capacity:
+#     storage: 10Gi
+#   volumeMode: Filesystem
+#   accessModes:
+#     - ReadWriteMany
+#   persistentVolumeReclaimPolicy: Delete
+#   storageClassName: local-storage
+#   local:
+#     path: /mnt/pv01
+#   nodeAffinity:
+#     required:
+#       nodeSelectorTerms:
+#         - matchExpressions:
+#           - key: kubernetes.io/hostname
+#             operator: In
+#             values:
+#               - k8s-worker-1
+#               - k8s-worker-2
+#               - k8s-worker-3
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: local-pvc
+# spec:
+#   resources:
+#     requests:
+#       storage: 1Gi
+#   accessModes:
+#     - ReadWriteMany
+#   storageClassName: local-storage
+#   volumeMode: Filesystem
+#   selector:
+#     matchLabels:
+#       local-storage: "k8s-manager-1"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -9,7 +59,6 @@ spec:
       storage: 1Gi
   accessModes:
     - ReadWriteMany
-  storageClassName: glusterfs
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -18,6 +67,14 @@ metadata:
 data:
   myvar1: hello world
   myvar2: "2020"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nginx-secret
+stringData:
+  secret1: super
+  secret2: secret
 ---
 apiVersion: v1
 kind: Service
@@ -32,6 +89,8 @@ spec:
       protocol: TCP
   selector:
     run: nginx
+  externalIPs:
+    - 42.42.42.1
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -46,7 +105,7 @@ spec:
   strategy:
     rollingUpdate:
       maxSurge: 1
-      maxUnavailable: 0
+      maxUnavailable: 1
     type: RollingUpdate
   template:
     metadata:
@@ -57,6 +116,13 @@ spec:
       containers:
         - name: nginx
           image: nginx
+          resources:
+            limits:
+              memory: 1Gi
+              cpu: 500m
+            requests:
+              memory: 512Mi
+              cpu: 250m
           ports:
             - name: http
               containerPort: 80
@@ -75,8 +141,13 @@ spec:
             - name: glusterfsvol
               mountPath: /mnt/nginx
               subPath: nginx
+            # - name: localvol
+            #   mountPath: /mnt/nginx2
+            #   subPath: nginx
             - name: configmapvol
               mountPath: /etc/config
+            - name: secretvol
+              mountPath: /etc/secret
           startupProbe:
             failureThreshold: 30
             periodSeconds: 10
@@ -109,13 +180,29 @@ spec:
               command:
                 - curl
                 - http://localhost
+          lifecycle:
+            # executes sync, must finish before pod is removed / evicted
+            # "sleep" forces container to delay as state "terminating" to allow endpoint to update first
+            preStop:
+              exec:
+                command: ["/bin/bash", "-c", "sleep 20"]
+            # executes immediatly after start but not gauranteed before entrypoint of container
+            # postStart:
+            #   exec:
+            #     command: ["/bin/bash", "-c", "touch /started.flag"]
       volumes:
         - name: glusterfsvol
           persistentVolumeClaim:
             claimName: nginx-pvc
+        # - name: localvol
+        #   persistentVolumeClaim:
+        #     claimName: local-pvc
         - name: configmapvol
           configMap:
             name: nginx-config
+        - name: secretvol
+          secret:
+            secretName: nginx-secret
 ---
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
