@@ -209,11 +209,13 @@ kind: Ingress
 metadata:
   name: nginx-ingress
   namespace: default
+  annotations:
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
   tls:
     - hosts:
-      - nginx.domain.local
-      secretName: domain.local.tls-cert
+        - nginx.domain.local
+      secretName: domain.local.tls-secret
   rules:
     - host: nginx.domain.local
       http:

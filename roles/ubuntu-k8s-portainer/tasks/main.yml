@@ -24,6 +24,13 @@
 - name: Apply /ansible_generated_configs/portainer-service.yaml
   shell: kubectl apply -f /ansible_generated_configs/portainer-service.yaml
 
+- name: Copy default/{{network_domain_name}}.tls-secret to {{portainer_namespace}}
+  ignore_errors: true
+  shell: |
+    kubectl get secret {{network_domain_name}}.tls-secret -o json \
+      | jq '.metadata.namespace = "{{portainer_namespace}}"' \
+      | kubectl create -f -
+
 - name: Clean up temp files in /ansible_generated_configs
   become_method: sudo
   become: true

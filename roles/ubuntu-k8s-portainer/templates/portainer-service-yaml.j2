@@ -75,6 +75,8 @@ kind: Ingress
 metadata:
   name: {{portainer_services_name}}-ingress
   namespace: {{portainer_namespace}}
+  annotations:
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
   tls:
     - hosts:

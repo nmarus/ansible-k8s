@@ -24,6 +24,13 @@
 - name: Apply /ansible_generated_configs/dashboard-service.yaml
   shell: kubectl apply -f /ansible_generated_configs/dashboard-service.yaml
 
+- name: Copy default/{{network_domain_name}}.tls-secret to {{dashboard_namespace}}
+  ignore_errors: true
+  shell: |
+    kubectl get secret {{network_domain_name}}.tls-secret -o json \
+      | jq '.metadata.namespace = "{{dashboard_namespace}}"' \
+      | kubectl create -f -
+
 - name: Clean up temp files in /ansible_generated_configs
   become_method: sudo
   become: true

@@ -98,6 +98,8 @@ kind: Ingress
 metadata:
   name: {{registry_services_name}}-ingress
   namespace: {{registry_namespace}}
+  annotations:
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
   tls:
     - hosts:

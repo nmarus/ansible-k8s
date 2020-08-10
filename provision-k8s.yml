@@ -108,22 +108,6 @@
         load_balancer_dns: "{{groups['k8s_haproxy'][0]}}"
 
 #
-# Setup k8s ingress with haproxy (run on one k8s manager)
-#
-
-- hosts: k8s_manager
-  tasks:
-    - import_role:
-        name: ubuntu-k8s-ingress
-      run_once: true
-      tags:
-        - k8s-ingress
-      vars:
-        haproxy_ssl_generate: true
-        haproxy_ssl_domain: "{{network_domain_name}}"
-        haproxy_ssl_local_save: "./certs"
-
-#
 # Setup k8s to use Gluster for storage (run on all k8s cluster nodes)
 #
 
@@ -164,6 +148,36 @@
           - /dev/sdc
         # initialize device when adding?
         heketi_destroy_device: true
+
+#
+# Setup k8s ingress with haproxy (run on one k8s manager)
+#
+
+- hosts: k8s_manager
+  tasks:
+    - import_role:
+        name: ubuntu-k8s-ingress
+      run_once: true
+      tags:
+        - never
+        - k8s-ingress
+      vars:
+        haproxy_ssl_generate: true
+        haproxy_ssl_domain: "{{network_domain_name}}"
+        haproxy_ssl_local_save: "./certs"
+
+#
+# Setup k8s ingress with traefik (run on one k8s manager)
+#
+
+- hosts: k8s_manager
+  tasks:
+    - import_role:
+        name: ubuntu-k8s-traefik
+      run_once: true
+      tags:
+        - never
+        - k8s-traefik
 
 #
 # Setup k8s descheduler (run on one k8s manager)
