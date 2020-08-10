@@ -1,0 +1,54 @@
+---
+# resources in the namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{quota_services_name}}
+  namespace: {{quota_namespace}}
+spec:
+  hard:
+    requests.cpu: {{((quota_cluster_cpu|int) - (quota_cluster_reserve_cpu|int)) * 1000}}m
+    requests.memory: {{(quota_cluster_memgb|int) - (quota_cluster_reserve_mem|int)}}Gi
+    limits.cpu: {{(quota_cluster_cpu|int) * 1000 * (quota_cluster_overfactor|int)}}m
+    limits.memory: {{(quota_cluster_memgb|int) * (quota_cluster_overfactor|int)}}Gi
+    # requests.nvidia.com/gpu: 4
+    # requests.storage: 500Gi
+    # <storage-class-name>.storageclass.storage.k8s.io/requests.storage: 500Gi
+    # configmaps: "100"
+    # persistentvolumeclaims: "100"
+    # <storage-class-name>.storageclass.storage.k8s.io/persistentvolumeclaims: "100"
+    # requests.ephemeral-storage: 500Gi
+    # limits.ephemeral-storage: 500Gi
+    # pods: "100"
+    # replicationcontrollers: "100"
+    # resourcequotas: "100"
+    # services: "100"
+    # services.loadbalancers: "100"
+    # services.nodeports: "100"
+    # secrets: "100"
+---
+# resources for the container/pod
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{quota_services_name}}
+  namespace: {{quota_namespace}}
+spec:
+  limits:
+    - type: Container
+      # default limit (max resources) per container if not specified
+      default:
+        cpu: 500m
+        memory: 512Mi
+      # default request (guaranteed resources) per container if not specified
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      # max limit that a container can specify
+      max:
+        cpu: 1000m
+        memory: 2Gi
+      # min request that a container can specify (should be <= to defaultRequest)
+      min:
+        cpu: 10m
+        memory: 10Mi

@@ -5,6 +5,11 @@ kubernetesVersion: stable
 controlPlaneEndpoint: "{{load_balancer_dns}}:{{load_balancer_port}}"
 # imageRepository: k8s.gcr.io
 clusterName: kubernetes
+apiServer:
+  extraArgs:
+    authorization-mode: Node,RBAC
+    service-node-port-range: {{service_network_port_range}}
+  timeoutForControlPlane: 4m0s
 networking:
   podSubnet: {{pod_network_cidr}}
   serviceSubnet: {{service_network_cidr}}

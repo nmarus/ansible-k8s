@@ -1,0 +1,3 @@
+---
+quota_namespace: default
+quota_services_name: quotalimits-default

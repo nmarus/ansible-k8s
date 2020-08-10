@@ -180,8 +180,6 @@
       vars:
         descheduler_rebalance_minutes: 5 # every 5 minutes
         # https://github.com/kubernetes-sigs/descheduler
-        descheduler_strategy_RemoveDuplicates:
-          enabled: true
         descheduler_strategy_RemovePodsViolatingInterPodAntiAffinity:
           enabled: true
         descheduler_strategy_RemovePodsViolatingNodeTaints:
@@ -204,6 +202,27 @@
             podsHavingTooManyRestarts:
               podRestartThreshold: 100
               includingInitContainers: true
+
+#
+# Setup k8s quotas in default namespace (run on one k8s manager)
+#
+
+- hosts: k8s_manager
+  tasks:
+    - import_role:
+        name: ubuntu-k8s-quotalimit
+      run_once: true
+      tags:
+        - never
+        - k8s-quotalimit
+      vars:
+        quota_namespace: default
+        quota_services_name: quotalimits-default
+        quota_cluster_cpu: "{{(groups['k8s_glusterfs']|length) * (worker_cpu|int)}}"
+        quota_cluster_memgb: "{{(groups['k8s_glusterfs']|length) * (worker_memgb|int)}}"
+        quota_cluster_reserve_cpu: "{{(worker_nplus|int) * (worker_cpu|int)}}"
+        quota_cluster_reserve_mem: "{{(worker_nplus|int) * (worker_memgb|int)}}"
+        quota_cluster_overfactor: "{{worker_limit_overfactor|int}}"
 
 #
 # Setup k8s docker registry (run on one k8s manager)

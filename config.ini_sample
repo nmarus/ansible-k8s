@@ -10,20 +10,21 @@
 10.0.0.22
 10.0.0.23
 
-# k8s load balancer for control plane (only one host is supported)
 [k8s_haproxy]
+# k8s load balancer for control plane (only one host is supported)
 10.0.0.30
 
-# k8s manager nodes (must be an odd number with a minimum count of 3)
 [k8s_manager]
+# k8s manager nodes (must be an odd number with a minimum count of 3)
 10.0.0.31
 10.0.0.32
 10.0.0.33
 
-# k8s worker nodes (minimum count of one, suggested 2 or more for HA)
 [k8s_worker]
+# k8s worker nodes (minimum count of one, suggested 2 or more for HA)
 10.0.0.41
 10.0.0.42
+10.0.0.43
 
 [all:vars]
 # ansible connection config
@@ -39,7 +40,18 @@ default_password=password
 network_gateway=10.0.0.1
 network_subnetprefix="25"
 network_domain_name=domain.local
+network_searchpath=domain.local
 network_dns_servers=8.8.8.8,8.8.4.4
+
+# node resources
+worker_memgb=4
+worker_cpu=2
+worker_limit_overfactor=4
+worker_nplus=1
+
+# kubernetes ip blocks
+pod_network_cidr=10.244.0.0/16
+service_network_cidr=10.0.0.0/12
 
 # VMWare provisioning vars (required when using VMware platform)
 vcenter_hostname=10.0.0.5

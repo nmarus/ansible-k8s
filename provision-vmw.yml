@@ -90,8 +90,8 @@
         network_ip_address: "{{item}}"
         root_password: "{{default_password}}"
         ova_path: "{{playbook_dir}}/resources/ubuntu-18.04-server-cloudimg-amd64.ova"
-        hw_memory: 4096
-        hw_cpus: 2
+        hw_memory: "{{worker_memgb * 1024}}"
+        hw_cpus: "{{worker_cpu}}"
         hw_disk: 20
       loop_control:
         extended: yes
