@@ -1,0 +1,9 @@
+---
+traefik_controller_namespace: traefik
+traefik_controller_service_name: traefik
+traefik_controller_service_port: 9000
+traefik_controller_http_port: 8000
+traefik_controller_https_port: 8443
+traefik_exposed_service_port: 9000
+traefik_exposed_http_port: 80
+traefik_exposed_https_port: 443
