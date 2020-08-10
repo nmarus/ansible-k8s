@@ -9,7 +9,13 @@ kind: ServiceAccount
 metadata:
   labels:
     k8s-app: {{dashboard_services_name}}
-  name: {{dashboard_services_name}}
+  name: {{dashboard_services_name}}-service
+  namespace: {{dashboard_namespace}}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{dashboard_services_name}}-admin-user
   namespace: {{dashboard_namespace}}
 ---
 kind: Service
@@ -59,7 +65,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   labels:
     k8s-app: {{dashboard_services_name}}
-  name: {{dashboard_services_name}}
+  name: {{dashboard_services_name}}-service
   namespace: {{dashboard_namespace}}
 rules:
   # Allow Dashboard to get, update and delete Dashboard exclusive secrets.
@@ -87,7 +93,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   labels:
     k8s-app: {{dashboard_services_name}}
-  name: {{dashboard_services_name}}
+  name: {{dashboard_services_name}}-service
 rules:
   # Allow Metrics Scraper to get metrics from the Metrics server
   - apiGroups: ["metrics.k8s.io"]
@@ -99,28 +105,41 @@ kind: RoleBinding
 metadata:
   labels:
     k8s-app: {{dashboard_services_name}}
-  name: {{dashboard_services_name}}
+  name: {{dashboard_services_name}}-service
   namespace: {{dashboard_namespace}}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{dashboard_services_name}}
+  name: {{dashboard_services_name}}-service
 subjects:
   - kind: ServiceAccount
-    name: {{dashboard_services_name}}
+    name: {{dashboard_services_name}}-service
     namespace: {{dashboard_namespace}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{dashboard_services_name}}
+  name: {{dashboard_services_name}}-service
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{dashboard_services_name}}
+  name: {{dashboard_services_name}}-service
 subjects:
   - kind: ServiceAccount
-    name: {{dashboard_services_name}}
+    name: {{dashboard_services_name}}-service
+    namespace: {{dashboard_namespace}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{dashboard_services_name}}-admin-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: {{dashboard_services_name}}-admin-user
     namespace: {{dashboard_namespace}}
 ---
 kind: Deployment
@@ -172,7 +191,7 @@ spec:
       volumes:
         - name: tmp-volume
           emptyDir: {}
-      serviceAccountName: {{dashboard_services_name}}
+      serviceAccountName: {{dashboard_services_name}}-service
       nodeSelector:
         "kubernetes.io/os": linux
       # Comment the following tolerations if Dashboard must not be deployed on master
@@ -235,7 +254,7 @@ spec:
             readOnlyRootFilesystem: true
             runAsUser: 1001
             runAsGroup: 2001
-      serviceAccountName: {{dashboard_services_name}}
+      serviceAccountName: {{dashboard_services_name}}-service
       nodeSelector:
         "kubernetes.io/os": linux
       # Comment the following tolerations if Dashboard must not be deployed on master
