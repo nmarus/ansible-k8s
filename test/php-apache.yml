@@ -51,10 +51,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - php-apache.lab.local
-      secretName: lab.local.tls-secret
+        - php-apache.domain.local
+      secretName: domain.local.tls-secret
   rules:
-    - host: php-apache.lab.local
+    - host: php-apache.domain.local
       http:
         paths:
           - path: /
