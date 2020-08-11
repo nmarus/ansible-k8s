@@ -7,12 +7,18 @@ metadata:
 kind: ServiceAccount
 apiVersion: v1
 metadata:
+  labels:
+    app.kubernetes.io/instance: {{traefik_controller_service_name}}
+    app.kubernetes.io/name: {{traefik_controller_service_name}}
   name: {{traefik_controller_service_name}}
   namespace: {{traefik_controller_namespace}}
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
+  labels:
+    app.kubernetes.io/instance: {{traefik_controller_service_name}}
+    app.kubernetes.io/name: {{traefik_controller_service_name}}
   name: {{traefik_controller_service_name}}
 rules:
   - apiGroups:
@@ -57,6 +63,9 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
+  labels:
+    app.kubernetes.io/instance: {{traefik_controller_service_name}}
+    app.kubernetes.io/name: {{traefik_controller_service_name}}
   name: {{traefik_controller_service_name}}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -70,6 +79,9 @@ subjects:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
+  labels:
+    app.kubernetes.io/instance: {{traefik_controller_service_name}}
+    app.kubernetes.io/name: {{traefik_controller_service_name}}
   name: {{traefik_controller_service_name}}
   namespace: {{traefik_controller_namespace}}
 spec:
@@ -92,7 +104,7 @@ spec:
     matchLabels:
       app.kubernetes.io/instance: {{traefik_controller_service_name}}
       app.kubernetes.io/name: {{traefik_controller_service_name}}
-  replicas: 1
+  replicas: {{traefik_minReplicas}}
   minReadySeconds: 10
   strategy:
     rollingUpdate:
@@ -124,6 +136,17 @@ spec:
             - --providers.kubernetescrd
             - --providers.kubernetesingress
             - --serversTransport.insecureSkipVerify=true
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1024Mi
+            requests:
+              cpu: 500m
+              memory: 256Mi
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/bash", "-c", "sleep 20"]
           readinessProbe:
             httpGet:
               path: /ping
@@ -176,11 +199,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{traefik_controller_service_name}}
-  namespace: {{traefik_controller_namespace}}
   labels:
     app.kubernetes.io/instance: {{traefik_controller_service_name}}
     app.kubernetes.io/name: {{traefik_controller_service_name}}
+  name: {{traefik_controller_service_name}}
+  namespace: {{traefik_controller_namespace}}
 spec:
   selector:
     app.kubernetes.io/instance: {{traefik_controller_service_name}}
@@ -216,3 +239,32 @@ spec:
       services:
         - kind: TraefikService
           name: api@internal
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  labels:
+    app.kubernetes.io/instance: {{traefik_controller_service_name}}
+    app.kubernetes.io/name: {{traefik_controller_service_name}}
+  name: {{traefik_controller_service_name}}
+  namespace: {{traefik_controller_namespace}}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{traefik_controller_service_name}}
+  minReplicas: {{traefik_minReplicas}}
+  maxReplicas: {{traefik_maxReplicas}}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 60

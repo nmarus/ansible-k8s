@@ -6,6 +6,24 @@
     path: /ansible_generated_configs
     state: directory
 
+- name: Create /ansible_generated_configs/ingress-traefik-crd.yaml
+  become: true
+  become_method: sudo
+  template:
+    src: ingress-traefik-crd-yaml.j2
+    dest: /ansible_generated_configs/ingress-traefik-crd.yaml
+    mode: 0644
+
+- name: Fetch generated /ansible_generated_configs/ingress-traefik-crd.yaml
+  become_method: sudo
+  become: true
+  fetch:
+    src: /ansible_generated_configs/ingress-traefik-crd.yaml
+    dest: "{{playbook_dir}}/generated"
+
+- name: Apply /ansible_generated_configs/ingress-traefik-crd.yaml
+  shell: kubectl apply -f /ansible_generated_configs/ingress-traefik-crd.yaml
+
 - name: Create /ansible_generated_configs/ingress-traefik-controller.yaml
   become: true
   become_method: sudo
