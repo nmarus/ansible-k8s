@@ -1,0 +1,142 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: php-apache
+spec:
+  selector:
+    matchLabels:
+      run: php-apache
+  # replicas: 1
+  template:
+    metadata:
+      labels:
+        run: php-apache
+    spec:
+      containers:
+        - name: php-apache
+          image: k8s.gcr.io/hpa-example
+          ports:
+            - containerPort: 80
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 200m
+              memory: 128Mi
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/bash", "-c", "sleep 20"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: php-apache
+  labels:
+    run: php-apache
+spec:
+  ports:
+  - port: 80
+  selector:
+    run: php-apache
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: php-apache
+  annotations:
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  tls:
+    - hosts:
+        - php-apache.lab.local
+      secretName: lab.local.tls-secret
+  rules:
+    - host: php-apache.lab.local
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: php-apache
+              servicePort: 80
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: php-apache
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: php-apache
+  minReplicas: 1
+  maxReplicas: 20
+  behavior:
+    scaleDown:
+      # selectPolicy: Disabled
+      # When the metrics indicate that the target should be scaled down the
+      # algorithm looks into previously computed desired states and uses the
+      # highest value from the specified interval.
+      stabilizationWindowSeconds: 0
+      # When multiple policies are specified the policy which allows the
+      # highest amount of change is the policy which is selected by default.
+      policies:
+        - type: Pods
+          # The "value" is *max* pods that can be terminated.
+          value: 2
+          periodSeconds: 30
+        - type: Percent
+          # The "value" is *max* percentage of pods that can be terminated.
+          value: 33
+          periodSeconds: 30
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+          # type: AverageValue
+          # averageValue: 250m
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 90
+          # type: AverageValue
+          # averageValue: 250Mi
+
+    #
+    # Custom Metrics API
+    #
+
+    # - type: Pods
+    #   # These metrics describe pods, and are averaged together across pods and
+    #   # compared with a target value to determine the replica count. They work
+    #   # much like resource metrics, except that they only support a target type
+    #   # of AverageValue.
+    #   pods:
+    #     metric:
+    #       name: packets-per-second
+    #     target:
+    #       type: AverageValue
+    #       averageValue: 1k
+    # - type: Object
+    #   object:
+    #     metric:
+    #       name: requests-per-second
+    #     describedObject:
+    #       apiVersion: networking.k8s.io/v1beta1
+    #       kind: Ingress
+    #       name: php-apache
+    #     target:
+    #       type: Value
+    #       value: 10
+
+
+# Load Testing
+#
+# while true; do wget -q -O- http://php-apache; done
