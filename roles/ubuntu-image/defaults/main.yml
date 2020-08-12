@@ -1,4 +1,4 @@
 ---
 image_url: https://cloud-images.ubuntu.com/releases/bionic/release/ubuntu-18.04-server-cloudimg-amd64.ova
 image_dir: "{{playbook_dir}}/resources"
-image_overwrite: false
+image_overwrite: no
