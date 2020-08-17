@@ -1,25 +1,26 @@
 ---
-- name: Check if auto update is enabled
+- name: Check if auto update is enabled {% if not ubuntu_disable_autoupdate %}(option skipped){% endif %}
+  when: ubuntu_disable_autoupdate
   stat:
     path: /etc/apt/apt.conf.d/20auto-upgrades
   register: autoupdate
 
-- name: Disable auto update
-  when: autoupdate.stat.exists
+- name: Disable auto update {% if not ubuntu_disable_autoupdate %}(option skipped){% endif %}
+  when: ubuntu_disable_autoupdate and autoupdate.stat.exists
   become: true
   become_method: sudo
   file:
     path: /etc/apt/apt.conf.d/20auto-upgrades
     state: absent
 
-- name: Wait for any possibly running unattended upgrade to finish
-  when: autoupdate.stat.exists
+- name: Wait for any possibly running unattended upgrade to finish {% if not ubuntu_disable_autoupdate %}(option skipped){% endif %}
+  when: ubuntu_disable_autoupdate and autoupdate.stat.exists
   become: true
   become_method: sudo
   raw: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
 
-- name: Reboot host after disabling auto update
-  when: autoupdate.stat.exists and ansible_hostname != "127.0.0.1" and ansible_hostname != "localhost"
+- name: Reboot host after disabling auto update {% if not ubuntu_disable_autoupdate %}(option skipped){% endif %}
+  when: ubuntu_disable_autoupdate and autoupdate.stat.exists and ansible_hostname != "127.0.0.1" and ansible_hostname != "localhost"
   shell: sleep 2 && /sbin/shutdown -r now "ansible reboot request"
   async: 1
   poll: 0
@@ -27,14 +28,14 @@
   become: true
   become_method: sudo
 
-- name: Waiting for remote host to reboot
-  when: autoupdate.stat.exists and ansible_hostname != "127.0.0.1" and ansible_hostname != "localhost"
+- name: Waiting for remote host to reboot {% if not ubuntu_disable_autoupdate %}(option skipped){% endif %}
+  when: ubuntu_disable_autoupdate and autoupdate.stat.exists and ansible_hostname != "127.0.0.1" and ansible_hostname != "localhost"
   wait_for_connection:
     delay: 10
     sleep: 10
     timeout: 300
 
-- name: Upgrade all packages to the latest version
+- name: Upgrade all packages to the latest version {% if not ubuntu_apt_upgrade %}(option skipped){% endif %}
   when: ubuntu_apt_upgrade
   become: true
   become_method: sudo

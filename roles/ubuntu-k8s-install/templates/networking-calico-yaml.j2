@@ -252,6 +252,13 @@ spec:
             # Prevents the container from sleeping forever.
             - name: SLEEP
               value: "false"
+{% if enable_ipv6 %}
+            # Enable IPv6
+            - name: IP6
+              value: "autodetect"
+            - name: FELIX_IPV6SUPPORT
+              value: "true"
+{% endif %}
           volumeMounts:
             - mountPath: /host/opt/cni/bin
               name: cni-bin-dir

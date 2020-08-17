@@ -25,13 +25,14 @@ metadata:
     run: {{registry_services_name}}
   namespace: {{registry_namespace}}
 spec:
-  type: NodePort
   ports:
     - port: {{registry_port}}
       targetPort: {{registry_port}}
       protocol: TCP
   selector:
     run: {{registry_services_name}}
+  externalIPs:
+    - {{registry_vip}}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -64,15 +65,9 @@ spec:
           env:
             - name: REGISTRY_HTTP_ADDR
               value: 0.0.0.0:{{registry_port}}
-            - name: REGISTRY_HTTP_TLS_CERTIFICATE
-              value: /certs/tls.crt
-            - name: REGISTRY_HTTP_TLS_KEY
-              value: /certs/tls.key
           volumeMounts:
             - name: glusterfsvol
               mountPath: /var/lib/registry
-            - name: certvol
-              mountPath: /certs
           startupProbe:
             failureThreshold: 30
             periodSeconds: 10
@@ -89,9 +84,6 @@ spec:
         - name: glusterfsvol
           persistentVolumeClaim:
             claimName: {{registry_services_name}}-pvc
-        - name: certvol
-          secret:
-            secretName: {{registry_fqdn}}.tls-secret
 ---
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
@@ -100,6 +92,7 @@ metadata:
   namespace: {{registry_namespace}}
   annotations:
     traefik.ingress.kubernetes.io/router.tls: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
 spec:
   tls:
     - hosts:

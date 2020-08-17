@@ -24,10 +24,11 @@
 - name: Apply /ansible_generated_configs/dashboard-service.yaml
   shell: kubectl apply -f /ansible_generated_configs/dashboard-service.yaml
 
-- name: Copy default/{{network_domain_name}}.tls-secret to {{dashboard_namespace}}
+- name: Copy default/tls-secret to {{dashboard_namespace}}/{{dashboard_tls_secret}}
   ignore_errors: true
   shell: |
-    kubectl get secret {{network_domain_name}}.tls-secret -o json \
+    kubectl -n default get secret tls-secret -o json \
+      | jq '.metadata.name = "{{dashboard_tls_secret}}"' \
       | jq '.metadata.namespace = "{{dashboard_namespace}}"' \
       | kubectl create -f -
 

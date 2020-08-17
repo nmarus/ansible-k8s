@@ -1,0 +1,10 @@
+---
+- include_tasks: haproxy-controller.yml
+  # vars:
+  #   config_map:
+  #     data:
+  #       ssl-redirect: "OFF"
+
+- include_tasks: haproxy-labels.yml
+  vars:
+    haproxynode: "{{haproxy_controller_service_name}}"

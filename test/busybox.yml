@@ -18,5 +18,5 @@ spec:
           image: busybox:1.28.4
           command:
             - sleep
-            - "3600"
+            - "43200"
           imagePullPolicy: IfNotPresent

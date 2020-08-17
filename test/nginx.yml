@@ -83,6 +83,11 @@ metadata:
   labels:
     run: nginx
 spec:
+  topologyKeys:
+    - "kubernetes.io/hostname"
+    - "topology.kubernetes.io/zone"
+    - "topology.kubernetes.io/region"
+    - "*"
   ports:
     - port: 80
       targetPort: 80
@@ -211,11 +216,13 @@ metadata:
   namespace: default
   annotations:
     traefik.ingress.kubernetes.io/router.tls: "true"
+    nginx.ingress.kubernetes.io/service-upstream: "true"
+    ingress.kubernetes.io/service-upstream: "true"
 spec:
   tls:
     - hosts:
         - nginx.domain.local
-      secretName: domain.local.tls-secret
+      secretName: tls-secret
   rules:
     - host: nginx.domain.local
       http:

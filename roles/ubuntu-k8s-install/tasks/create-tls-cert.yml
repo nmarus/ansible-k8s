@@ -6,6 +6,14 @@
     path: /tmp/k8s_tls
     state: absent
 
+- name: Remove any existing local temp files in /tmp/k8s_tls
+  become_method: sudo
+  become: true
+  local_action:
+    module: file
+    path: /tmp/k8s_tls
+    state: absent
+
 - name: Verify remote temp directory /tmp/k8s_tls exists
   become: true
   become_method: sudo
@@ -14,21 +22,20 @@
     state: directory
     mode: 0755
 
-- name: Copy SSL Cert file to remote Host
-  become_method: sudo
+- name: Create SSL Certificate for {{ssl_cn_name}}
   become: true
-  copy:
-    src: "{{ssl_crt_path}}"
-    dest: /tmp/k8s_tls/tls.crt
-
-- name: Copy SSL Key file to remote Host
   become_method: sudo
-  become: true
-  copy:
-    src: "{{ssl_key_path}}"
-    dest: /tmp/k8s_tls/tls.key
+  shell: |
+    cd /tmp/k8s_tls
+    openssl req -x509 -nodes \
+      -days {{ssl_expire_days}} \
+      -newkey rsa:{{ssl_key_size}} \
+      -keyout tls.key \
+      -out tls.crt \
+      -subj "/CN={{ssl_cn_name}}{{ssl_subj_opt}}"
+    chmod 755 tls.*
 
-- name: Create k8s Secret {{secret_name}}
+- name: Create k8s Secret {{secret_name}} in {{secret_namespace}}
   shell: |
     cd /tmp/k8s_tls
     kubectl -n {{secret_namespace}} create secret tls {{secret_name}} \
@@ -39,14 +46,5 @@
   become_method: sudo
   become: true
   file:
-    path: /tmp/k8s_tls
-    state: absent
-
-- name: Cleanup local temp files in /tmp/k8s_tls
-  run_once: true
-  become_method: sudo
-  become: true
-  local_action:
-    module: file
     path: /tmp/k8s_tls
     state: absent

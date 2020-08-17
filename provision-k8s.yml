@@ -25,7 +25,7 @@
     - import_role:
         name: ubuntu-k8s-base
       tags:
-        - b8s-base
+        - k8s-base
         - prereqs
 
 #
@@ -106,6 +106,42 @@
         k8s_manager_nodes: "{{groups['k8s_manager']}}"
         k8s_worker_nodes: "{{groups['k8s_worker']}}"
         load_balancer_dns: "{{groups['k8s_haproxy'][0]}}"
+    - name: Assign Nodes to us-east region
+      tags:
+        - k8s-regions
+      run_once: true
+      with_items: "{{groups['region_us_east']}}"
+      vars:
+        node_name: "{{hostvars[item]['vm_name']}}"
+      shell: |
+        kubectl label node {{node_name}} \
+          --overwrite=true topology.kubernetes.io/region=us-east
+        kubectl label node {{node_name}} \
+          --overwrite=true topology.kubernetes.io/zone=us-east-1
+    - name: Assign Nodes to us-central region
+      tags:
+        - k8s-regions
+      run_once: true
+      with_items: "{{groups['region_us_central']}}"
+      vars:
+        node_name: "{{hostvars[item]['vm_name']}}"
+      shell: |
+        kubectl label node {{node_name}} \
+          --overwrite=true topology.kubernetes.io/region=us-central
+        kubectl label node {{node_name}} \
+            --overwrite=true topology.kubernetes.io/zone=us-central-1
+    - name: Assign Nodes to us-west region
+      tags:
+        - k8s-regions
+      run_once: true
+      with_items: "{{groups['region_us_west']}}"
+      vars:
+        node_name: "{{hostvars[item]['vm_name']}}"
+      shell: |
+        kubectl label node {{node_name}} \
+          --overwrite=true topology.kubernetes.io/region=us-west
+        kubectl label node {{node_name}} \
+          --overwrite=true topology.kubernetes.io/zone=us-west-1
 
 #
 # Setup k8s to use Gluster for storage (run on all k8s cluster nodes)
@@ -156,15 +192,11 @@
 - hosts: k8s_manager
   tasks:
     - import_role:
-        name: ubuntu-k8s-ingress
+        name: ubuntu-k8s-ingress-haproxy
       run_once: true
       tags:
         - never
-        - k8s-ingress
-      vars:
-        haproxy_ssl_generate: true
-        haproxy_ssl_domain: "{{network_domain_name}}"
-        haproxy_ssl_local_save: "./certs"
+        - k8s-ingress-haproxy
 
 #
 # Setup k8s ingress with traefik (run on one k8s manager)
@@ -173,11 +205,24 @@
 - hosts: k8s_manager
   tasks:
     - import_role:
-        name: ubuntu-k8s-traefik
+        name: ubuntu-k8s-ingress-traefik
       run_once: true
       tags:
         - never
-        - k8s-traefik
+        - k8s-ingress-traefik
+
+#
+# Setup k8s ingress with nginx (run on one k8s manager)
+#
+
+- hosts: k8s_manager
+  tasks:
+    - import_role:
+        name: ubuntu-k8s-ingress-nginx
+      run_once: true
+      tags:
+        - never
+        - k8s-ingress-nginx
 
 #
 # Setup k8s descheduler (run on one k8s manager)

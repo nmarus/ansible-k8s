@@ -6,3 +6,12 @@ service_network_port_range: 30000-32767
 cluster_dns_domain: cluster.local
 calicoctl_version: 3.15.1
 enable_default_networking_policy: false
+metrics_secure_port: 4443
+
+enable_ipv6: false
+pod_network_cidr_ipv6: FD00:DEAD:BEEF:FACE::/64
+service_network_cidr_ipv6: FD00:DEAD:BEEF:BABE::/64
+
+ssl_subj_opt: ''
+ssl_key_size: 2048
+ssl_expire_days: 365

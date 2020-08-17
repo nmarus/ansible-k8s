@@ -5,15 +5,24 @@ metadata:
   name: {{haproxy_controller_namespace}}
 ---
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{haproxy_controller_service_name}}
+  namespace: {{haproxy_controller_namespace}}
+{% if config_map is defined %}
+{{config_map|to_nice_yaml(indent=2)}}
+{% endif %}
+---
+apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{haproxy_controller_namespace}}
+  name: {{haproxy_controller_service_name}}
   namespace: {{haproxy_controller_namespace}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  name: {{haproxy_controller_namespace}}
+  name: {{haproxy_controller_service_name}}
 rules:
   - apiGroups:
       - ""
@@ -65,7 +74,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
-  name: {{haproxy_controller_namespace}}
+  name: {{haproxy_controller_service_name}}
   namespace: {{haproxy_controller_namespace}}
 rules:
   - apiGroups:
@@ -102,61 +111,61 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: {{haproxy_controller_namespace}}
+  name: {{haproxy_controller_service_name}}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{haproxy_controller_namespace}}
+  name: {{haproxy_controller_service_name}}
 subjects:
   - kind: ServiceAccount
-    name: {{haproxy_controller_namespace}}
+    name: {{haproxy_controller_service_name}}
     namespace: {{haproxy_controller_namespace}}
   - apiGroup: rbac.authorization.k8s.io
     kind: User
-    name: {{haproxy_controller_namespace}}
+    name: {{haproxy_controller_service_name}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
 metadata:
-  name: {{haproxy_controller_namespace}}
+  name: {{haproxy_controller_service_name}}
   namespace: {{haproxy_controller_namespace}}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{haproxy_controller_namespace}}
+  name: {{haproxy_controller_service_name}}
 subjects:
   - kind: ServiceAccount
-    name: {{haproxy_controller_namespace}}
+    name: {{haproxy_controller_service_name}}
     namespace: {{haproxy_controller_namespace}}
   - apiGroup: rbac.authorization.k8s.io
     kind: User
-    name: {{haproxy_controller_namespace}}
+    name: {{haproxy_controller_service_name}}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: haproxy-ingress
+  name: {{haproxy_controller_service_name}}
   namespace: {{haproxy_controller_namespace}}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    run: haproxy-default-backend
-  name: haproxy-default-backend
+    run: {{haproxy_controller_service_name}}-default-backend
+  name: {{haproxy_controller_service_name}}-default-backend
   namespace: {{haproxy_controller_namespace}}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      run: haproxy-default-backend
+      run: {{haproxy_controller_service_name}}-default-backend
   template:
     metadata:
       labels:
-        run: haproxy-default-backend
+        run: {{haproxy_controller_service_name}}-default-backend
     spec:
       containers:
-        - name: haproxy-default-backend
+        - name: {{haproxy_controller_service_name}}-default-backend
           image: gcr.io/google_containers/defaultbackend:1.0
           ports:
             - containerPort: 8080
@@ -165,12 +174,12 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    run: haproxy-default-backend
-  name: haproxy-default-backend
+    run: {{haproxy_controller_service_name}}-default-backend
+  name: {{haproxy_controller_service_name}}-default-backend
   namespace: {{haproxy_controller_namespace}}
 spec:
   selector:
-    run: haproxy-default-backend
+    run: {{haproxy_controller_service_name}}-default-backend
   ports:
     - name: http
       port: 8080
@@ -181,33 +190,33 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    run: haproxy-ingress
-  name: haproxy-ingress
+    run: {{haproxy_controller_service_name}}
+  name: {{haproxy_controller_service_name}}
   namespace: {{haproxy_controller_namespace}}
 spec:
   updateStrategy:
     type: RollingUpdate
   selector:
     matchLabels:
-      run: haproxy-ingress
+      run: {{haproxy_controller_service_name}}
   template:
     metadata:
       labels:
-        run: haproxy-ingress
+        run: {{haproxy_controller_service_name}}
     spec:
       hostNetwork: true
       nodeSelector:
-        haproxynode: {{haproxy_controller_namespace}}
+        haproxynode: {{haproxy_controller_service_name}}
       serviceAccountName: {{haproxy_controller_namespace}}
       tolerations:
         - operator: Exists
       containers:
-        - name: haproxy-ingress
+        - name: {{haproxy_controller_service_name}}
           image: quay.io/jcmoraisjr/haproxy-ingress
           args:
-            - --configmap={{haproxy_controller_namespace}}/haproxy-ingress
-            - --default-backend-service={{haproxy_controller_namespace}}/haproxy-default-backend
-            - --default-ssl-certificate={{haproxy_controller_namespace}}/tls-secret
+            - --configmap={{haproxy_controller_namespace}}/{{haproxy_controller_service_name}}
+            - --default-backend-service={{haproxy_controller_namespace}}/{{haproxy_controller_service_name}}-default-backend
+            - --default-ssl-certificate=default/tls-secret
           ports:
             - name: http
               containerPort: 80

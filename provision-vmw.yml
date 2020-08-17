@@ -199,7 +199,17 @@
       tags:
         - never
         - remove-hosts
+        - remove-cache
       local_action:
         module: file
         path: "{{playbook_dir}}/.cache"
         state: absent
+
+# Restart all VMs
+- hosts: all
+  tasks:
+    - import_role:
+        name: vmw-restart-hosts
+      tags:
+        - never
+        - restart-hosts

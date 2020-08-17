@@ -1,0 +1,35 @@
+---
+- name: Get vm-name from hostvars
+  set_fact:
+    cacheable: yes
+    vm_name: "{{hostvars[inventory_hostname].ansible_facts.vm_name}}"
+
+- name: Restart VM
+  tags:
+    - never
+    - restart-hosts
+  vars:
+    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+  local_action:
+    module: vmware_guest
+    name: "{{vm_name}}"
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    datastore: "{{vcenter_datastore}}"
+    datacenter: "{{datacenter}}"
+    cluster: "{{vcenter_cluster if vcenter_cluster is defined else None}}"
+    state: restarted
+    force: true
+    wait_for_ip_address: false
+
+- name: "{{vm_name}} ({{inventory_hostname}}) Waiting for VM to reboot..."
+  local_action:
+    module: wait_for
+    host: "{{inventory_hostname}}"
+    port: 22
+    state: started
+    delay: 0
+    sleep: 1
+    timeout: 600

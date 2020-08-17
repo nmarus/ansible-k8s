@@ -1,0 +1,3 @@
+---
+haproxy_controller_namespace: ingress-haproxy
+haproxy_controller_service_name: ingress-haproxy

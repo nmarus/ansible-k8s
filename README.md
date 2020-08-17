@@ -42,6 +42,49 @@ ansible-playbook provision-vmw.yml --tags vmw-snapshot-create
 ansible-playbook provision-k8s.yml
 ```
 
+### Optional Playbooks
+
+#### Ingresses:
+
+_**Note:** Only deploy one of the ingresses below._
+
+```bash
+# haproxy layer7 ingress and ssl offload
+# listens on port 80 (redirect) and 443 of all nodes (host networking)
+# deployed as DaemonSet
+ansible-playbook provision-k8s.yml --tags k8s-ingress-haproxy
+
+# nginx layer7 ingress and ssl offload
+# listens on port 80 (redirect) and 443 of all nodes (host networking)
+# deployed as DaemonSet
+ansible-playbook provision-k8s.yml --tags k8s-ingress-nginx
+
+# traefik layer7 ingress and ssl offload (traefik.example.com)
+# listens on port 80 (redirect) and 443 of virtual ip
+# deployed as Service/Deployment with Horizontal Pod Autoscaling
+# does NOT currently support Service Topology routing
+ansible-playbook provision-k8s.yml --tags k8s-ingress-traefik
+```
+
+#### Others:
+
+```bash
+# descheduler cronjob
+ansible-playbook provision-k8s.yml --tags k8s-descheduler
+
+# quotas for default namespace
+ansible-playbook provision-k8s.yml --tags k8s-quotalimit
+
+# install docker registry (registry.example.com)
+ansible-playbook provision-k8s.yml --tags k8s-registry
+
+# install k8s web dashboard (dashboard.example.com)
+ansible-playbook provision-k8s.yml --tags k8s-dashboard
+
+# install portainer web dashboard for k8s (portainer.example.com)
+ansible-playbook provision-k8s.yml --tags k8s-portainer
+```
+
 ## Admin Setup
 
 **Install kubectl for your local Linux Distribution**

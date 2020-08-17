@@ -5,11 +5,6 @@ kubernetesVersion: stable
 controlPlaneEndpoint: "{{load_balancer_dns}}:{{load_balancer_port}}"
 # imageRepository: k8s.gcr.io
 clusterName: kubernetes
-apiServer:
-  extraArgs:
-    authorization-mode: Node,RBAC
-    service-node-port-range: {{service_network_port_range}}
-  timeoutForControlPlane: 4m0s
 networking:
   podSubnet: {{pod_network_cidr}}
   serviceSubnet: {{service_network_cidr}}
@@ -23,6 +18,31 @@ etcd:
     caFile: /etc/kubernetes/pki/etcd/ca.crt
     certFile: /etc/kubernetes/pki/apiserver-etcd-client.crt
     keyFile: /etc/kubernetes/pki/apiserver-etcd-client.key
+controllerManager:
+  extraArgs:
+    # https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
+    # horizontal-pod-autoscaler-cpu-initialization-period: 5m0s
+    # horizontal-pod-autoscaler-downscale-stabilization: 5m0s
+    # horizontal-pod-autoscaler-initial-readiness-delay: 30s
+    # horizontal-pod-autoscaler-sync-period: 15s
+    # horizontal-pod-autoscaler-tolerance: 0.1
+    # https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/
+    feature-gates: "ServiceTopology=true,EndpointSlice=true,EndpointSliceProxying=true{% if enable_ipv6 %},IPv6DualStack=true{% endif %}"
+{% if enable_ipv6 %}
+    cluster-cidr: {{pod_network_cidr}},{{pod_network_cidr_ipv6}}
+    service-cluster-ip-range: {{service_network_cidr}},{{service_network_cidr_ipv6}}
+    node-cidr-mask-size-ipv4: "24"
+    node-cidr-mask-size-ipv6: "64"
+{% endif %}
+apiServer:
+  extraArgs:
+    authorization-mode: Node,RBAC
+    service-node-port-range: {{service_network_port_range}}
+    feature-gates: "ServiceTopology=true,EndpointSlice=true,EndpointSliceProxying=true{% if enable_ipv6 %},IPv6DualStack=true{% endif %}"
+  timeoutForControlPlane: 4m0s
+scheduler:
+  extraArgs:
+    feature-gates: "ServiceTopology=true,EndpointSlice=true,EndpointSliceProxying=true{% if enable_ipv6 %},IPv6DualStack=true{% endif %}"
 ---
 apiVersion: kubeadm.k8s.io/v1beta2
 kind: InitConfiguration
@@ -38,8 +58,29 @@ bootstrapTokens:
       - authentication
     groups:
       - system:bootstrappers:kubeadm:default-node-token
-{% if cloud_provider is defined %}
 nodeRegistration:
   kubeletExtraArgs:
+{% if cloud_provider is defined %}
     cloud-provider: {{cloud_provider}}
+{% endif %}
+    feature-gates: "ServiceTopology=true,EndpointSlice=true,EndpointSliceProxying=true{% if enable_ipv6 %},IPv6DualStack=true{% endif %}"
+---
+apiVersion: kubeproxy.config.k8s.io/v1alpha1
+kind: KubeProxyConfiguration
+featureGates:
+  ServiceTopology: true
+  EndpointSlice: true
+  EndpointSliceProxying: true
+{% if enable_ipv6 %}
+  IPv6DualStack: true
+{% endif %}
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+featureGates:
+  ServiceTopology: true
+  EndpointSlice: true
+  EndpointSliceProxying: true
+{% if enable_ipv6 %}
+  IPv6DualStack: true
 {% endif %}

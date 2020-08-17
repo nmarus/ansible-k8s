@@ -1,0 +1,10 @@
+---
+- include_tasks: nginx-controller.yml
+  # vars:
+  #   config_map:
+  #     data:
+  #       ssl-redirect: "false"
+
+- include_tasks: nginx-labels.yml
+  vars:
+    nginxnode: "{{nginx_controller_service_name}}"
