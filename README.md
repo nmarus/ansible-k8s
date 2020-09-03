@@ -1,6 +1,6 @@
 ## (in development)
 
-# Ansible Kubernetes Playbook (with optional vSphere Deployment)
+# Ansible Kubernetes Playbook for vSphere
 
 ## Environment Setup
 
