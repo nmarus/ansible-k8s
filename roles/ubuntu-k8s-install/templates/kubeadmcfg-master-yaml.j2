@@ -9,10 +9,7 @@ discovery:
   tlsBootstrapToken: y7yaev.9dvwxx6ny4ef8vlq
 nodeRegistration:
   kubeletExtraArgs:
-{% if cloud_provider is defined %}
-    cloud-provider: {{cloud_provider}}
-{% endif %}
-    feature-gates: "ServiceTopology=true,EndpointSlice=true,EndpointSliceProxying=true{% if enable_ipv6 %},IPv6DualStack=true{% endif %}"
+    feature-gates: "ServiceTopology=true,EndpointSlice=true,EndpointSliceProxying=true{% if enable_ipv6 is defined and enable_ipv6 %},IPv6DualStack=true{% endif %}"
   criSocket: /var/run/dockershim.sock
 controlPlane:
   localAPIEndpoint:
@@ -26,7 +23,7 @@ featureGates:
   ServiceTopology: true
   EndpointSlice: true
   EndpointSliceProxying: true
-{% if enable_ipv6 %}
+{% if enable_ipv6 is defined and enable_ipv6 %}
   IPv6DualStack: true
 {% endif %}
 ---
@@ -36,6 +33,6 @@ featureGates:
   ServiceTopology: true
   EndpointSlice: true
   EndpointSliceProxying: true
-{% if enable_ipv6 %}
+{% if enable_ipv6 is defined and enable_ipv6 %}
   IPv6DualStack: true
 {% endif %}

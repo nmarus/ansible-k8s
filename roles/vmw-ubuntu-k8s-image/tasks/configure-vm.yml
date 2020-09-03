@@ -1,0 +1,15 @@
+- import_tasks: conf/disable-auto-update.yml
+- import_tasks: conf/self-update.yml
+- import_tasks: conf/python.yml
+- import_tasks: conf/apt.yml
+- import_tasks: conf/guestinfo.yml
+
+- import_tasks: k8s/docker-prereqs.yml
+- import_tasks: k8s/docker-deploy.yml
+- import_tasks: k8s/k8s-cni.yml
+- import_tasks: k8s/k8s-base.yml
+- import_tasks: k8s/k8s-images.yml
+
+# cluster reqs
+- import_tasks: cust/glusterfs-client-tools.yml
+- import_tasks: cust/heketi-cli.yml

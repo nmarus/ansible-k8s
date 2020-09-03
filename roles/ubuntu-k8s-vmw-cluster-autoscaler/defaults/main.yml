@@ -1,0 +1,36 @@
+---
+cluster_manager_port: 6443
+cluster_ssh_user: ubuntu
+vmware_min_nodes: 1
+vmware_max_nodes: 10
+vmware_cores_total: "0:320000"
+vmware_memory_total: "0:6400000"
+vmware_max_ap_node_groups: 1
+vmware_scaledown_enabled: true
+vmware_scaledown_delay_after_add: 1m
+vmware_scaledown_delay_after_delete: 1m
+vmware_scaledown_delay_after_failure: 1m
+vmware_scaledown_unneeded_time: 1m
+vmware_scaledown_unready_time: 1m
+vmware_unremovable_node_recheck_timeout: 1m
+vmware_machine_definition:
+  tiny:
+    memsize: 4096
+    vcpus: 2
+    disksize: 10240
+  medium:
+    memsize: 8192
+    vcpus: 2
+    disksize: 20480
+  large:
+    memsize: 16384
+    vcpus: 4
+    disksize: 51200
+  extra-large:
+    memsize: 32767
+    vcpus: 8
+    disksize: 102400
+vmware_machine_default: medium
+vmware_vcenter_folder: ""
+docker_image_vas: "fred78290/vsphere-autoscaler:v1.18.2"
+docker_image_cas: "fred78290/cluster-autoscaler:v1.18.2"

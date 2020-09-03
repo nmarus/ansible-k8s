@@ -1,0 +1,32 @@
+---
+- name: Get python sources directory
+  shell: |
+    PY_SCRIPT='import os; from cloudinit import sources; print(os.path.dirname(sources.__file__));'
+    PYTHON=python3
+    CLOUD_INIT_SOURCES=$($PYTHON -c ''"${PY_SCRIPT}"'' 2>/dev/null || (exit_code="${?}"; echo "failed to find python runtime" 1>&2; exit "${exit_code}"; ))
+    [ -z "${CLOUD_INIT_SOURCES}" ] && echo "cloud-init not found" 1>&2 && exit 1
+    echo $CLOUD_INIT_SOURCES
+  register: pysources_cmd
+
+- set_fact:
+    pysources: "{{pysources_cmd.stdout}}"
+
+- name: Copy DataSourceVMwareGuestInfo.py to {{pysources}}/DataSourceVMwareGuestInfo.py
+  become_method: sudo
+  become: true
+  copy:
+    src: DataSourceVMwareGuestInfo.py
+    dest: "{{pysources}}/DataSourceVMwareGuestInfo.py"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Copy 99-DataSourceVMwareGuestInfo.cfg to /etc/cloud/cloud.cfg.d
+  become_method: sudo
+  become: true
+  copy:
+    src: 99-DataSourceVMwareGuestInfo.cfg
+    dest: /etc/cloud/cloud.cfg.d/99-DataSourceVMwareGuestInfo.cfg
+    owner: root
+    group: root
+    mode: 0644

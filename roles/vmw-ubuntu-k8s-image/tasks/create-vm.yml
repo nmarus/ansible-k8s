@@ -1,0 +1,115 @@
+---
+- name: Get status of deployed Virtual Machines
+  vmware_vm_info:
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    vm_type: vm
+  register: vm_info
+
+- name: Load SSH pub key
+  slurp:
+    src: "{{ansible_ssh_public_key_file}}"
+  register: public_key_file
+- set_fact:
+    ssh_public_key: "{{public_key_file.content | b64decode}}"
+
+- name: Create userdata from template
+  template:
+    src: userdata-yaml.j2
+    dest: /tmp/userdata.yaml
+    mode: 0775
+
+- name: Load user-data from generated template
+  slurp:
+    src: "/tmp/userdata.yaml"
+  register: userdata_file
+- set_fact:
+    userdata: "{{userdata_file.content | b64decode}}"
+
+- name: Clean up temp files
+  become_method: sudo
+  become: true
+  file:
+    path: /tmp/userdata.yaml
+    state: absent
+
+- name: "Creating Virtual Machine - {{vm_name}}"
+  when: "vm_name not in (vm_info.virtual_machines | map(attribute='guest_name'))"
+  vmware_deploy_ovf:
+    name: "{{vm_name}}"
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    disk_provisioning: "{{vcenter_disk_provisioning}}"
+    ovf: "{{ova_path}}"
+    networks:
+      VM Network: "{{vcenter_network}}"
+    datastore: "{{vcenter_datastore}}"
+    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+    cluster: "{{vcenter_cluster if vcenter_cluster is defined else None}}"
+    fail_on_spec_warnings: false
+    allow_duplicates: false
+    power_on: false
+    inject_ovf_env: true
+    properties:
+      hostname: "{{vm_hostname}}"
+      user-data: "{{userdata | string | b64encode}}"
+
+- name: "Customize Virtual Machine - {{vm_name}}"
+  when: "vm_name not in (vm_info.virtual_machines | map(attribute='guest_name'))"
+  vmware_guest:
+    name: "{{vm_name}}"
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    datastore: "{{vcenter_datastore}}"
+    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+    cluster: "{{vcenter_cluster if vcenter_cluster is defined else None}}"
+    state: present
+    hardware:
+      version: 10
+      boot_firmware: efi
+      mem_reservation:  "{{hw_memory if hw_memory is defined else '4096'}}"
+      memory_mb: "{{hw_memory if hw_memory is defined else '4096'}}"
+      num_cpus: "{{hw_cpus if hw_cpus is defined else '2'}}"
+    disk:
+      - size_gb: "{{hw_disk if hw_disk is defined else '20'}}"
+
+- name: "Perform Initial-Boot configuration check - {{vm_name}}"
+  vmware_guest:
+    name: "{{vm_name}}"
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    datastore: "{{vcenter_datastore}}"
+    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+    cluster: "{{vcenter_cluster if vcenter_cluster is defined else None}}"
+    state: poweredon
+    wait_for_ip_address: true
+  register: vm_guest
+- set_fact:
+    vm_ip_address: "{{vm_guest.instance.ipv4}}"
+
+- name: "Add host to inventory - {{vm_name}} ({{vm_ip_address}})"
+  add_host:
+    name: "{{vm_ip_address}}"
+    groups: ubuntu-image
+    vm_name: "{{vm_name}}"
+
+- name: Update custom cached facts - {{vm_name}} ({{vm_ip_address}})
+  delegate_to: "{{vm_ip_address}}"
+  delegate_facts: true
+  set_fact:
+    cacheable: yes
+    vm_name: "{{vm_name}}"
+
+- name: Update generic cached facts - {{vm_name}} ({{vm_ip_address}})
+  delegate_to: "{{vm_ip_address}}"
+  delegate_facts: true
+  gather_facts:
+    parallel: yes

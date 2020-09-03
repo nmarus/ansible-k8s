@@ -12,18 +12,14 @@
   file:
     path: /tmp/registry_tls
     state: directory
-    mode: 0755
+    mode: 0777
 
 - name: Copy SSL Cert file to remote Host
-  become_method: sudo
-  become: true
   copy:
     src: "{{ssl_crt_path}}"
     dest: /tmp/registry_tls/tls.crt
 
 - name: Copy SSL Key file to remote Host
-  become_method: sudo
-  become: true
   copy:
     src: "{{ssl_key_path}}"
     dest: /tmp/registry_tls/tls.key

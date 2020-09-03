@@ -1,30 +1,17 @@
 ---
 #
-# Download Ubuntu OVA
-#
-
-- hosts: localhost
-  tasks:
-    - import_role:
-        name: ubuntu-image
-
-#
 # Provision Ubuntu Hosts
 #
 
 - hosts: localhost
   tasks:
     - include_role:
-        name: vmw-ubuntu
+        name: vmw-create-from-template
       vars:
         vm_name: "k8s-glusterfs-{{ansible_loop.index}}"
         vm_hostname: "k8s-glusterfs-{{ansible_loop.index}}"
+        vm_template: "{{vmw_base_image}}"
         network_ip_address: "{{item}}"
-        root_password: "{{default_password}}"
-        ova_path: "{{playbook_dir}}/resources/ubuntu-18.04-server-cloudimg-amd64.ova"
-        hw_memory: 4096
-        hw_cpus: 2
-        hw_disk: 20
       loop_control:
         extended: yes
       loop: "{{groups['k8s_glusterfs']|list}}"
@@ -32,16 +19,12 @@
 - hosts: localhost
   tasks:
     - include_role:
-        name: vmw-ubuntu
+        name: vmw-create-from-template
       vars:
         vm_name: "k8s-haproxy-{{ansible_loop.index}}"
         vm_hostname: "k8s-haproxy-{{ansible_loop.index}}"
+        vm_template: "{{vmw_base_image}}"
         network_ip_address: "{{item}}"
-        root_password: "{{default_password}}"
-        ova_path: "{{playbook_dir}}/resources/ubuntu-18.04-server-cloudimg-amd64.ova"
-        hw_memory: 4096
-        hw_cpus: 2
-        hw_disk: 20
       loop_control:
         extended: yes
       loop: "{{groups['k8s_haproxy']|list}}"
@@ -49,16 +32,12 @@
 - hosts: localhost
   tasks:
     - include_role:
-        name: vmw-ubuntu
+        name: vmw-create-from-template
       vars:
         vm_name: "k8s-etcd-{{ansible_loop.index}}"
         vm_hostname: "k8s-etcd-{{ansible_loop.index}}"
+        vm_template: "{{vmw_base_image}}"
         network_ip_address: "{{item}}"
-        root_password: "{{default_password}}"
-        ova_path: "{{playbook_dir}}/resources/ubuntu-18.04-server-cloudimg-amd64.ova"
-        hw_memory: 4096
-        hw_cpus: 2
-        hw_disk: 20
       loop_control:
         extended: yes
       loop: "{{groups['k8s_etcd']|list}}"
@@ -66,16 +45,12 @@
 - hosts: localhost
   tasks:
     - include_role:
-        name: vmw-ubuntu
+        name: vmw-create-from-template
       vars:
         vm_name: "k8s-manager-{{ansible_loop.index}}"
         vm_hostname: "k8s-manager-{{ansible_loop.index}}"
+        vm_template: "{{vmw_base_image}}"
         network_ip_address: "{{item}}"
-        root_password: "{{default_password}}"
-        ova_path: "{{playbook_dir}}/resources/ubuntu-18.04-server-cloudimg-amd64.ova"
-        hw_memory: 4096
-        hw_cpus: 2
-        hw_disk: 20
       loop_control:
         extended: yes
       loop: "{{groups['k8s_manager']|list}}"
@@ -83,16 +58,12 @@
 - hosts: localhost
   tasks:
     - include_role:
-        name: vmw-ubuntu
+        name: vmw-create-from-template
       vars:
         vm_name: "k8s-worker-{{ansible_loop.index}}"
         vm_hostname: "k8s-worker-{{ansible_loop.index}}"
+        vm_template: "{{vmw_base_image}}"
         network_ip_address: "{{item}}"
-        root_password: "{{default_password}}"
-        ova_path: "{{playbook_dir}}/resources/ubuntu-18.04-server-cloudimg-amd64.ova"
-        hw_memory: "{{worker_memgb * 1024}}"
-        hw_cpus: "{{worker_cpu}}"
-        hw_disk: 20
       loop_control:
         extended: yes
       loop: "{{groups['k8s_worker']|list}}"
@@ -157,6 +128,7 @@
     - import_role:
         name: vmw-snapshot-inventory
       tags:
+        - never
         - snapshot-inventory
 
 # Create NEW snapshot for all managed virtual machines

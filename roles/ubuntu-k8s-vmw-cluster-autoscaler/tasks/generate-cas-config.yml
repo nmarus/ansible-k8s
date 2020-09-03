@@ -1,0 +1,117 @@
+---
+- name: Load SSH private key
+  local_action:
+    module: slurp
+    src: "{{cluster_ssh_private_key_path}}"
+  register: private_key
+
+- set_fact:
+    cacheable: yes
+    cluster_manager_rsa: "{{private_key.content|b64decode}}"
+
+- debug:
+    msg: "{{cluster_manager_rsa}}"
+
+- name: Get Kubernetes Token
+  become_method: sudo
+  become: true
+  shell: kubeadm token list 2>&1 | grep "authentication,signing" | awk '{print $1}'
+  register: token_cmd
+
+- set_fact:
+    cacheable: yes
+    cluster_manager_token: "{{token_cmd.stdout}}"
+
+- debug:
+    msg: "{{cluster_manager_token}}"
+
+- name: Get Kubernetes CA Cert
+  become_method: sudo
+  become: true
+  shell: openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
+  register: cacert_cmd
+
+- set_fact:
+    cacheable: yes
+    cluster_manager_cacert: "{{cacert_cmd.stdout}}"
+
+- debug:
+    msg: "{{cluster_manager_cacert}}"
+
+- name: Generate configuration files for injection into config map
+  vars:
+    grpc_config_yaml: |-
+      address: unix:/var/run/cluster-autoscaler/vmware.sock
+      secret: vmware
+      timeout: 300
+      config:
+        kubeAdmAddress: {{cluster_manager_host}}:{{cluster_manager_port}}
+        kubeAdmToken: {{cluster_manager_token}}
+        kubeAdmCACert: sha256:{{cluster_manager_cacert}}
+        kubeAdmExtraArguments: []
+    autoscaler_config_yaml: |-
+      network: unix
+      listen: /var/run/cluster-autoscaler/vmware.sock
+      secret: vmware
+      minNode: {{vmware_min_nodes}}
+      maxNode: {{vmware_max_nodes}}
+      nodePrice: 0
+      podPrice: 0
+      image: {{vmware_target_image}}
+      optionals:
+        pricing: false
+        getAvailableMachineTypes: false
+        newNodeGroup: false
+        templateNodeInfo: false
+        createNodeGroup: false
+        deleteNodeGroup: false
+      kubeadm:
+        address: {{cluster_manager_host}}:{{cluster_manager_port}}
+        token: {{cluster_manager_token}}
+        ca: sha256:{{cluster_manager_cacert}}
+        extras-args: []
+      default-machine: {{vmware_machine_default}}
+      machines: {{vmware_machine_definition|to_json}}
+      cloud-init:
+        package_update: false
+        package_upgrade: false
+      sync-folder: {}
+      ssh-infos:
+        user: {{cluster_ssh_user}}
+        ssh-private-key: /etc/cluster/config/kubernetes_id_rsa
+      vmware:
+        {{cluster_node_group_name}}:
+          url: {{vmware_vcenter_host}}
+          uid: {{vmware_vcenter_user}}
+          password: {{vmware_vcenter_pass}}
+          insecure: {{vmware_vcenter_insecure|bool}}
+          dc: {{vmware_vcenter_datacenter}}
+          datastore: {{vmware_vcenter_datastore}}
+          resource-pool: {{vmware_vcenter_resourcepool}}
+          vmFolder: "{{vmware_vcenter_folder}}"
+          timeout: 300
+          template-name: {{vmware_target_image}}
+          template: false
+          linked: false
+          customization: ""
+          network:
+            dns:
+              search:
+                - {{vmware_network_domain}}
+              nameserver: {{vmware_network_dns|to_json}}
+            interfaces:
+              - exists: true
+                network: {{vmware_network_name}}
+                adapter: vmxnet3
+                mac-address: generate
+                nic: eth0
+                dhcp: true
+  set_fact:
+    grpc_config: "{{grpc_config_yaml|from_yaml}}"
+    autoscaler_config: "{{autoscaler_config_yaml|from_yaml}}"
+
+- debug:
+    msg: "{{grpc_config}}"
+
+- debug:
+    msg: "{{autoscaler_config}}"

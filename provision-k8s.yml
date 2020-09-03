@@ -1,34 +1,5 @@
 ---
 #
-# Install k8s Pre-reqs on glusterfss, k8s_haproxys, etcds, managers, and workers
-#
-
-- hosts: all
-  tasks:
-    - import_role:
-        name: ubuntu-common
-      tags:
-        - common
-        - prereqs
-      vars:
-        ubuntu_apt_packages:
-          - git
-          - curl
-          - wget
-          - vim
-          - jq
-    - import_role:
-        name: ubuntu-docker-deploy
-      tags:
-        - docker
-        - prereqs
-    - import_role:
-        name: ubuntu-k8s-base
-      tags:
-        - k8s-base
-        - prereqs
-
-#
 # Setup GlusterFS Service (run on all glusterfs nodes)
 #
 
@@ -106,42 +77,7 @@
         k8s_manager_nodes: "{{groups['k8s_manager']}}"
         k8s_worker_nodes: "{{groups['k8s_worker']}}"
         load_balancer_dns: "{{groups['k8s_haproxy'][0]}}"
-    - name: Assign Nodes to us-east region
-      tags:
-        - k8s-regions
-      run_once: true
-      with_items: "{{groups['region_us_east']}}"
-      vars:
-        node_name: "{{hostvars[item]['vm_name']}}"
-      shell: |
-        kubectl label node {{node_name}} \
-          --overwrite=true topology.kubernetes.io/region=us-east
-        kubectl label node {{node_name}} \
-          --overwrite=true topology.kubernetes.io/zone=us-east-1
-    - name: Assign Nodes to us-central region
-      tags:
-        - k8s-regions
-      run_once: true
-      with_items: "{{groups['region_us_central']}}"
-      vars:
-        node_name: "{{hostvars[item]['vm_name']}}"
-      shell: |
-        kubectl label node {{node_name}} \
-          --overwrite=true topology.kubernetes.io/region=us-central
-        kubectl label node {{node_name}} \
-            --overwrite=true topology.kubernetes.io/zone=us-central-1
-    - name: Assign Nodes to us-west region
-      tags:
-        - k8s-regions
-      run_once: true
-      with_items: "{{groups['region_us_west']}}"
-      vars:
-        node_name: "{{hostvars[item]['vm_name']}}"
-      shell: |
-        kubectl label node {{node_name}} \
-          --overwrite=true topology.kubernetes.io/region=us-west
-        kubectl label node {{node_name}} \
-          --overwrite=true topology.kubernetes.io/zone=us-west-1
+        vmware_node_group_name: vmware-ca-k8s
 
 #
 # Setup k8s to use Gluster for storage (run on all k8s cluster nodes)
@@ -184,6 +120,44 @@
           - /dev/sdc
         # initialize device when adding?
         heketi_destroy_device: true
+
+#
+# Set k8s Cluster Autoscaling
+#
+
+- hosts: k8s_manager
+  tasks:
+    - import_role:
+        name: ubuntu-k8s-vmw-cluster-autoscaler
+      tags:
+        - never
+        - k8s-cas
+      run_once: true
+      vars:
+        vmware_network_domain: "{{network_domain_name}}"
+        vmware_network_name: "{{vcenter_network}}"
+        vmware_network_dns:
+          - "8.8.8.8"
+          - "8.8.4.4"
+        vmware_vcenter_host: "https://{{vcenter_hostname}}"
+        vmware_vcenter_user: "{{vcenter_username}}"
+        vmware_vcenter_pass: "{{vcenter_password}}"
+        vmware_vcenter_insecure: "true"
+        vmware_vcenter_datacenter: "{{vcenter_datacenter}}"
+        vmware_vcenter_datastore: "{{vcenter_datastore}}"
+        vmware_vcenter_resourcepool: k8s-worker-1-cas
+        vmware_vm_name: k8s-worker-1
+        vmware_target_image: "{{vmw_base_image}}"
+        vmware_max_nodes: 10
+        # k8s cluster
+        cluster_node_name: k8s-worker-1
+        cluster_node_group_name: k8s-worker-1-cas
+        cluster_manager_host: "{{groups['k8s_haproxy'][0]}}"
+        cluster_manager_port: 6443
+        cluster_ssh_private_key_path: ".ssh/id_rsa"
+        # custom docker images
+        # docker_image_vas: "42.42.42.100:5000/nmarus/vsphere-autoscaler:v1.18.2"
+        # docker_image_cas: "42.42.42.100:5000/nmarus/cluster-autoscaler:v1.18.2"
 
 #
 # Setup k8s ingress with haproxy (run on one k8s manager)
@@ -277,11 +251,10 @@
       vars:
         quota_namespace: default
         quota_services_name: quotalimits-default
-        quota_cluster_cpu: "{{(groups['k8s_glusterfs']|length) * (worker_cpu|int)}}"
-        quota_cluster_memgb: "{{(groups['k8s_glusterfs']|length) * (worker_memgb|int)}}"
-        quota_cluster_reserve_cpu: "{{(worker_nplus|int) * (worker_cpu|int)}}"
-        quota_cluster_reserve_mem: "{{(worker_nplus|int) * (worker_memgb|int)}}"
-        quota_cluster_overfactor: "{{worker_limit_overfactor|int}}"
+        requests_cpu: 20000m
+        requests_memory: 48Gi
+        limits_cpu: 40000m
+        limits_memory: 96Gi
 
 #
 # Setup k8s docker registry (run on one k8s manager)
@@ -349,19 +322,6 @@
       tags:
         - never
         - reset-install
-
-# Upgrade ALL apt packages on host
-- hosts: all
-  tasks:
-    - import_role:
-        name: ubuntu-common
-      tags:
-        - never
-        - ubuntu-update
-      vars:
-        ubuntu_apt_upgrade: true
-        ubuntu_apt_reboot: true
-
 
 # Setup kubectl on localhost for connectivity to cluster
 - hosts: localhost

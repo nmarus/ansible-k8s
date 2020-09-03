@@ -31,14 +31,16 @@ When your Ansible environment is ready, run the following to initiate the
 playbook:
 
 ```bash
-# Prepare Virtual Machines on vSphere (optional)
+# Prepare Base Image used to create Machines on vSphere
+ansible-playbook provision-image.yml
+
+# Prepare Virtual Machines on vSphere
 ansible-playbook provision-vmw.yml
 
 # Suggested to snapshot environment before continuing
 ansible-playbook provision-vmw.yml --tags vmw-snapshot-create
 
 # Install k8s environment
-#(requires hosts and ssh setup to be complete if not using provision-vmw)
 ansible-playbook provision-k8s.yml
 ```
 

@@ -1,7 +1,8 @@
 ---
 apiVersion: kubeadm.k8s.io/v1beta2
 kind: ClusterConfiguration
-kubernetesVersion: stable
+# kubernetesVersion: stable
+kubernetesVersion: v{{kubernetes_version}}
 controlPlaneEndpoint: "{{load_balancer_dns}}:{{load_balancer_port}}"
 # imageRepository: k8s.gcr.io
 clusterName: kubernetes
@@ -27,8 +28,8 @@ controllerManager:
     # horizontal-pod-autoscaler-sync-period: 15s
     # horizontal-pod-autoscaler-tolerance: 0.1
     # https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/
-    feature-gates: "ServiceTopology=true,EndpointSlice=true,EndpointSliceProxying=true{% if enable_ipv6 %},IPv6DualStack=true{% endif %}"
-{% if enable_ipv6 %}
+    feature-gates: "ServiceTopology=true,EndpointSlice=true,EndpointSliceProxying=true{% if enable_ipv6 is defined and enable_ipv6 %},IPv6DualStack=true{% endif %}"
+{% if enable_ipv6 is defined and enable_ipv6 %}
     cluster-cidr: {{pod_network_cidr}},{{pod_network_cidr_ipv6}}
     service-cluster-ip-range: {{service_network_cidr}},{{service_network_cidr_ipv6}}
     node-cidr-mask-size-ipv4: "24"
@@ -38,11 +39,11 @@ apiServer:
   extraArgs:
     authorization-mode: Node,RBAC
     service-node-port-range: {{service_network_port_range}}
-    feature-gates: "ServiceTopology=true,EndpointSlice=true,EndpointSliceProxying=true{% if enable_ipv6 %},IPv6DualStack=true{% endif %}"
+    feature-gates: "ServiceTopology=true,EndpointSlice=true,EndpointSliceProxying=true{% if enable_ipv6 is defined and enable_ipv6 %},IPv6DualStack=true{% endif %}"
   timeoutForControlPlane: 4m0s
 scheduler:
   extraArgs:
-    feature-gates: "ServiceTopology=true,EndpointSlice=true,EndpointSliceProxying=true{% if enable_ipv6 %},IPv6DualStack=true{% endif %}"
+    feature-gates: "ServiceTopology=true,EndpointSlice=true,EndpointSliceProxying=true{% if enable_ipv6 is defined and enable_ipv6 %},IPv6DualStack=true{% endif %}"
 ---
 apiVersion: kubeadm.k8s.io/v1beta2
 kind: InitConfiguration
@@ -60,10 +61,7 @@ bootstrapTokens:
       - system:bootstrappers:kubeadm:default-node-token
 nodeRegistration:
   kubeletExtraArgs:
-{% if cloud_provider is defined %}
-    cloud-provider: {{cloud_provider}}
-{% endif %}
-    feature-gates: "ServiceTopology=true,EndpointSlice=true,EndpointSliceProxying=true{% if enable_ipv6 %},IPv6DualStack=true{% endif %}"
+    feature-gates: "ServiceTopology=true,EndpointSlice=true,EndpointSliceProxying=true{% if enable_ipv6 is defined and enable_ipv6 %},IPv6DualStack=true{% endif %}"
 ---
 apiVersion: kubeproxy.config.k8s.io/v1alpha1
 kind: KubeProxyConfiguration
@@ -71,7 +69,7 @@ featureGates:
   ServiceTopology: true
   EndpointSlice: true
   EndpointSliceProxying: true
-{% if enable_ipv6 %}
+{% if enable_ipv6 is defined and enable_ipv6 %}
   IPv6DualStack: true
 {% endif %}
 ---
@@ -81,6 +79,6 @@ featureGates:
   ServiceTopology: true
   EndpointSlice: true
   EndpointSliceProxying: true
-{% if enable_ipv6 %}
+{% if enable_ipv6 is defined and enable_ipv6 %}
   IPv6DualStack: true
 {% endif %}

@@ -36,10 +36,11 @@
     extended: yes
   loop: "{{k8s_etcd_nodes}}"
 
+- include_tasks: etcd-ca.yml
+  when: inventory_hostname == k8s_etcd_nodes[0]
+
 - include_tasks: etcd-certs.yml
   when: inventory_hostname == k8s_etcd_nodes[0]
-  vars:
-    all_etcd_hosts: "{% set hosts = [] %}{% for i in range(0, k8s_etcd_nodes|length) %}{{ hosts.append({'name': 'infra'+i|string, 'address': k8s_etcd_nodes[i]}) }}{% endfor %}{{hosts|list}}"
 
 - name: Gather generated files to fetch on primary host
   when: inventory_hostname == k8s_etcd_nodes[0]
@@ -95,7 +96,7 @@
 - name: Run tests for etcd cluster
   register: test_etcd
   shell: |
-    ETCD_TAG=$(kubeadm config images list | grep 'etcd' | sed -E 's/.*etcd:([0-9]+\.[0-9]+\.[0-9]+\-[0-9]+$)/\1/')
+    ETCD_TAG=$(kubeadm config images list --kubernetes-version v{{kubernetes_version}} | grep 'etcd' | sed -E 's/.*etcd:([0-9]+\.[0-9]+\.[0-9]+\-[0-9]+$)/\1/')
     docker run --rm -it \
       --net host \
       -v /etc/kubernetes:/etc/kubernetes k8s.gcr.io/etcd:${ETCD_TAG} etcdctl \
@@ -104,7 +105,7 @@
       --cacert /etc/kubernetes/pki/etcd/ca.crt \
       --endpoints https://{{inventory_hostname}}:2379 endpoint health --cluster
 
-- name: Show test results for etcd cluster on primary host
+- name: Show test results for etcd cluster
   debug:
     msg: "{{test_etcd.stdout_lines}}"
 

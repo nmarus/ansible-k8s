@@ -77,6 +77,10 @@ spec:
         k8s-app: metrics-server
     spec:
       serviceAccountName: metrics-server
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      tolerations:
+        - operator: Exists
       volumes:
         - name: tmp-dir
           emptyDir: {}

@@ -1,0 +1,7 @@
+---
+ubuntu_disable_autoupdate: true
+ubuntu_apt_upgrade: false
+ubuntu_apt_reboot: false
+kubernetes_version: 1.18.8
+cni_version: 0.8.5
+glusterfs_heketi_version: 10.0.0

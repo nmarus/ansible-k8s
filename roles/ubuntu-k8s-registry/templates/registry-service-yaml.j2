@@ -55,6 +55,10 @@ spec:
       labels:
         run: {{registry_services_name}}
     spec:
+      nodeSelector:
+        registrynode: {{registry_services_name}}
+      tolerations:
+        - operator: Exists
       restartPolicy: Always
       containers:
         - name: {{registry_services_name}}

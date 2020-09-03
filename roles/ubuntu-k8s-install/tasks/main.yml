@@ -2,6 +2,12 @@
 - include_tasks: controller.yml
   when: inventory_hostname == k8s_manager_nodes[0] and ('k8s_enabled' not in ansible_facts or not k8s_enabled)
 
+- name: Update ansible fact for certificate_key on all hosts
+  when: inventory_hostname != k8s_manager_nodes[0]
+  set_fact:
+    cacheable: yes
+    certificate_key: "{{hostvars[k8s_manager_nodes[0]].ansible_facts.certificate_key}}"
+
 - include_tasks: networking-calico.yml
   when: inventory_hostname == k8s_manager_nodes[0]
 
@@ -13,17 +19,11 @@
   vars:
     metrics_server_version: v0.3.7
 
-- include_tasks: get-discovery-yaml.yml
-  when: inventory_hostname == k8s_manager_nodes[0]
-
-- include_tasks: update-discovery-yaml.yml
-  when: inventory_hostname != k8s_manager_nodes[0]
-
 - include_tasks: manager.yml
-  when: inventory_hostname in k8s_manager_nodes and inventory_hostname != k8s_manager_nodes[0] and ('k8s_enabled' not in ansible_facts or not k8s_enabled)
+  when: k8s_manager_nodes is defined and (k8s_manager_nodes|length>0) and inventory_hostname in k8s_manager_nodes and inventory_hostname != k8s_manager_nodes[0] and ('k8s_enabled' not in ansible_facts or not k8s_enabled)
 
 - include_tasks: worker.yml
-  when: inventory_hostname in k8s_worker_nodes and ('k8s_enabled' not in ansible_facts or not k8s_enabled)
+  when: k8s_worker_nodes is defined and (k8s_worker_nodes|length>0) and inventory_hostname in k8s_worker_nodes and ('k8s_enabled' not in ansible_facts or not k8s_enabled)
 
 - include_tasks: install-calicoctl.yml
   when: inventory_hostname in k8s_manager_nodes

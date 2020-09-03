@@ -33,13 +33,19 @@
     secret_namespace: "{{registry_namespace}}"
     ssl_save_dir: "{{registry_ssl_local_save}}"
 
+- include_tasks: registry-labels.yml
+  vars:
+    registrynode: "{{registry_services_name}}"
+
 - include_tasks: registry-service.yml
 
-- name: Determine nodePort for registry service
-  register: getNodePort
-  shell: kubectl -n {{registry_namespace}} get service {{registry_services_name}} -o json | jq '.spec.ports[0].nodePort'
-
-- name: Save fact with nodePort for registry service
+- name: Save fact with internalHost and nodePort for registry service
   set_fact:
-    registry_nodePort: "{{getNodePort.stdout}}"
+    registry_nodePort: "{{registry_port}}"
+    registry_internalHost: "{{registry_services_name}}.{{registry_namespace}}"
+    cacheable: yes
+
+- name: Save fact with internalUri for registry service
+  set_fact:
+    registry_internalUri: "{{registry_internalHost}}:{{registry_nodePort}}"
     cacheable: yes

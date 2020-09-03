@@ -1,4 +1,0 @@
----
-ubuntu_disable_autoupdate: true
-ubuntu_apt_upgrade: false
-ubuntu_apt_reboot: false

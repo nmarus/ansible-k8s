@@ -1,0 +1,4 @@
+---
+- import_tasks: generate-cas-config.yml
+- import_tasks: node-provider-id.yml
+- import_tasks: cluster-autoscaler-service.yml

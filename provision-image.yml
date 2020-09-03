@@ -1,0 +1,20 @@
+---
+- hosts: localhost
+  tasks:
+    - import_role:
+        name: ubuntu-image
+    - import_role:
+        name: vmw-ubuntu-k8s-image
+      vars:
+        root_password: "{{default_password}}"
+        vm_name: "{{vmw_base_image}}"
+        vm_hostname: "{{vmw_base_image}}"
+        ova_path: "{{playbook_dir}}/resources/ubuntu-18.04-server-cloudimg-amd64.ova"
+        ubuntu_apt_packages:
+          - git
+          - curl
+          - wget
+          - vim
+          - jq
+          - socat
+          - conntrack

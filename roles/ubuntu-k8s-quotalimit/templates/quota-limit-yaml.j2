@@ -7,10 +7,10 @@ metadata:
   namespace: {{quota_namespace}}
 spec:
   hard:
-    requests.cpu: {{((quota_cluster_cpu|int) - (quota_cluster_reserve_cpu|int)) * 1000}}m
-    requests.memory: {{(quota_cluster_memgb|int) - (quota_cluster_reserve_mem|int)}}Gi
-    limits.cpu: {{(quota_cluster_cpu|int) * 1000 * (quota_cluster_overfactor|int)}}m
-    limits.memory: {{(quota_cluster_memgb|int) * (quota_cluster_overfactor|int)}}Gi
+    requests.cpu: {{requests_cpu}}
+    requests.memory: {{requests_memory}}
+    limits.cpu: {{limits_cpu}}
+    limits.memory: {{limits_memory}}
     # requests.nvidia.com/gpu: 4
     # requests.storage: 500Gi
     # <storage-class-name>.storageclass.storage.k8s.io/requests.storage: 500Gi

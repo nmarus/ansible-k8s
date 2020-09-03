@@ -37,27 +37,27 @@
 - debug:
     var: certificate_key
 
-- name: "Create /home/{{ansible_user}}/kubeadmcfg.yaml"
+- name: "Create /etc/kubernetes/kubeadmcfg.yaml"
   become: true
   become_method: sudo
   template:
     src: kubeadmcfg-controller-yaml.j2
-    dest: "/home/{{ansible_user}}/kubeadmcfg.yaml"
+    dest: "/etc/kubernetes/kubeadmcfg.yaml"
     mode: 0644
     owner: "{{ansible_user}}"
     group: "{{ansible_user}}"
 
-- name: Fetch generated /home/{{ansible_user}}/kubeadmcfg.yaml
+- name: Fetch generated /etc/kubernetes/kubeadmcfg.yaml
   become_method: sudo
   become: true
   fetch:
-    src: /home/{{ansible_user}}/kubeadmcfg.yaml
+    src: /etc/kubernetes/kubeadmcfg.yaml
     dest: "{{playbook_dir}}/generated"
 
 - name: Initialize k8s Control Plane
   become_method: sudo
   become: true
-  shell: kubeadm init --config kubeadmcfg.yaml --upload-certs
+  shell: kubeadm init --config /etc/kubernetes/kubeadmcfg.yaml --upload-certs
 
 - name: Update local profile for kube access
   become_method: sudo
@@ -67,6 +67,27 @@
     mkdir -p /home/{{ansible_user}}/.kube
     cp -i /etc/kubernetes/admin.conf /home/{{ansible_user}}/.kube/config
     chown -R {{ansible_user}}:{{ansible_user}} /home/{{ansible_user}}/.kube
+
+- name: Create/refresh cluster discovery config file
+  shell: |
+    kubectl get configmap cluster-info \
+      --namespace kube-public \
+      --output=jsonpath='{.data.kubeconfig}' \
+      > discovery.yaml
+
+- name: Apply cluster discovery config file
+  become_method: sudo
+  become: true
+  shell: |
+    mv discovery.yaml /etc/kubernetes/discovery.yaml
+    chown root:root /etc/kubernetes/discovery.yaml
+
+- name: Fetch generated cluster discovery config file
+  become_method: sudo
+  become: true
+  fetch:
+    src: /etc/kubernetes/discovery.yaml
+    dest: "{{playbook_dir}}/generated"
 
 - name: Update host facts regarding k8s install
   set_fact:

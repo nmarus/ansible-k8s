@@ -1,0 +1,42 @@
+---
+- name: Verify k8s GPG key is present
+  become: true
+  become_method: sudo
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+
+- name: Update k8s Sources
+  become: true
+  become_method: sudo
+  shell: |
+    cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
+    deb https://apt.kubernetes.io/ kubernetes-xenial main
+    EOF
+
+- name: Install kubelet, kubeadm, kubectl
+  become: true
+  become_method: sudo
+  apt:
+    pkg:
+      - kubelet={{kubernetes_version}}-00
+      - kubeadm={{kubernetes_version}}-00
+      - kubectl={{kubernetes_version}}-00
+    state: present
+    update_cache: yes
+    force_apt_get: yes
+
+- name: Lock installed versions of kubelet, kubeadm, kubectl
+  become: true
+  become_method: sudo
+  shell: apt-mark hold kubelet kubeadm kubectl
+
+- name: Copy kubelet to /etc/default/kubelet
+  become_method: sudo
+  become: true
+  copy:
+    src: kubelet
+    dest: "/etc/default/kubelet"
+    owner: root
+    group: root
+    mode: 0644

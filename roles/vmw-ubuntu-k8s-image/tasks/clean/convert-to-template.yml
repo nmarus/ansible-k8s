@@ -1,0 +1,12 @@
+- name: "Converto to template - {{vm_name}}"
+  vmware_guest:
+    name: "{{vm_name}}"
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    datastore: "{{vcenter_datastore}}"
+    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+    cluster: "{{vcenter_cluster if vcenter_cluster is defined else None}}"
+    state: present
+    is_template: true

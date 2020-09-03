@@ -1,0 +1,14 @@
+---
+- name: Install optional platform packages
+  when: ubuntu_apt_packages is defined
+  become: true
+  become_method: sudo
+  apt:
+    pkg: "{{ubuntu_apt_packages}}"
+    state: present
+    update_cache: yes
+
+# registers to ansible_facts.packages
+- name: Gather package manager facts
+  package_facts:
+    manager: auto

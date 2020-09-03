@@ -1,0 +1,25 @@
+---
+- name: "Update vApp Properties - {{vm_name}}"
+  vmware_guest:
+    name: "{{vm_name}}"
+    hostname: "{{vcenter_hostname}}"
+    username: "{{vcenter_username}}"
+    password: "{{vcenter_password}}"
+    validate_certs: false
+    datastore: "{{vcenter_datastore}}"
+    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
+    cluster: "{{vcenter_cluster if vcenter_cluster is defined else None}}"
+    state: present
+    vapp_properties:
+      - id: instance-id
+        operation: remove
+      - id: hostname
+        operation: remove
+      - id: seedfrom
+        operation: remove
+      - id: public-keys
+        operation: remove
+      - id: user-data
+        operation: remove
+      - id: password
+        operation: remove

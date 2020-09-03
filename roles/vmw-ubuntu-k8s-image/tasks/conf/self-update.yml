@@ -1,0 +1,26 @@
+---
+- name: Upgrade all packages to the latest version {% if not ubuntu_apt_upgrade %}(option skipped){% endif %}
+  when: ubuntu_apt_upgrade
+  become: true
+  become_method: sudo
+  apt:
+    name: "*"
+    state: latest
+    force_apt_get: true
+    update_cache: yes
+
+- name: Reboot host after upgrading all packages to the latest version {% if not ubuntu_apt_reboot %}(option skipped){% endif %}
+  when: ubuntu_apt_reboot and ubuntu_apt_upgrade
+  shell: sleep 2 && /sbin/shutdown -r now "ansible reboot request"
+  async: 1
+  poll: 0
+  ignore_errors: true
+  become: true
+  become_method: sudo
+
+- name: Waiting for remote host to reboot {% if not ubuntu_apt_reboot %}(option skipped){% endif %}
+  when: ubuntu_apt_reboot and ubuntu_apt_upgrade
+  wait_for_connection:
+    delay: 10
+    sleep: 10
+    timeout: 300

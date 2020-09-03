@@ -1,0 +1,315 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubernetes-cas-config
+  namespace: kube-system
+binaryData:
+  kubernetes_id_rsa: "{{cluster_manager_rsa|b64encode}}"
+  grpc-config.json: "{{grpc_config|to_nice_json|b64encode}}"
+  autoscaler-config.json: "{{autoscaler_config|to_nice_json|b64encode}}"
+# ---
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: cluster-autoscaler-priority-expander
+#   namespace: kube-system
+# data:
+#   priorities: |-
+#     10:
+#       - ^{{cluster_node_group_name}}$
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+  name: cluster-autoscaler
+  namespace: kube-system
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kubernetes-cas-pvc
+  namespace: kube-system
+spec:
+  resources:
+    requests:
+      storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: cluster-autoscaler
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - events
+      - endpoints
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - ''
+    resources:
+      - pods/eviction
+    verbs:
+      - create
+  - apiGroups:
+      - ''
+    resources:
+      - pods/status
+    verbs:
+      - update
+  - apiGroups:
+      - ''
+    resources:
+      - endpoints
+    resourceNames:
+      - cluster-autoscaler
+    verbs:
+      - get
+      - update
+  - apiGroups:
+      - ''
+    resources:
+      - nodes
+    verbs:
+      - watch
+      - list
+      - get
+      - update
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+    verbs:
+      - watch
+      - list
+      - get
+  - apiGroups:
+      - ''
+    resources:
+      - pods
+      - services
+      - replicationcontrollers
+      - persistentvolumeclaims
+      - persistentvolumes
+    verbs:
+      - watch
+      - list
+      - get
+  - apiGroups:
+      - extensions
+    resources:
+      - replicasets
+      - daemonsets
+    verbs:
+      - watch
+      - list
+      - get
+  - apiGroups:
+      - policy
+    resources:
+      - poddisruptionbudgets
+    verbs:
+      - watch
+      - list
+  - apiGroups:
+      - apps
+    resources:
+      - replicasets
+      - daemonsets
+      - statefulsets
+    verbs:
+      - watch
+      - list
+      - get
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - watch
+      - list
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-autoscaler
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-autoscaler
+subjects:
+  - kind: ServiceAccount
+    name: cluster-autoscaler
+    namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: cluster-autoscaler
+  namespace: kube-system
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - configmaps
+    verbs:
+      - create
+  - apiGroups:
+      - ''
+    resources:
+      - configmaps
+    resourceNames:
+      - cluster-autoscaler-status
+    verbs:
+      - delete
+      - get
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: cluster-autoscaler
+  namespace: kube-system
+  labels:
+    k8s-addon: cluster-autoscaler.addons.k8s.io
+    k8s-app: cluster-autoscaler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cluster-autoscaler
+subjects:
+  - kind: ServiceAccount
+    name: cluster-autoscaler
+    namespace: kube-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster-autoscaler
+  namespace: kube-system
+  labels:
+    k8s-app: cluster-autoscaler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: cluster-autoscaler
+  template:
+    metadata:
+      labels:
+        k8s-app: cluster-autoscaler
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+    spec:
+      serviceAccountName: cluster-autoscaler
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      tolerations:
+        - operator: Exists
+      containers:
+        - image: {{docker_image_vas}}
+          name: vsphere-autoscaler
+          resources:
+            limits:
+              cpu: 100m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 300Mi
+          command:
+            - ./vsphere-autoscaler
+            - '--kubeconfig=/etc/kubernetes/config'
+            - '--config=/etc/cluster/config/autoscaler-config.json'
+            - '--save=/etc/cluster/data/vmware-autoscaler-state.json'
+            - '-v=4'
+            - '-logtostderr=true'
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: cluster-socket
+              mountPath: /var/run/cluster-autoscaler
+            - name: kubernetes
+              mountPath: /etc/kubernetes/config
+              readOnly: true
+            - name: kubernetes-cas-config
+              mountPath: /etc/cluster/config
+              readOnly: true
+            - name: kubernetes-cas-vol
+              mountPath: /etc/cluster/data
+        - image: {{docker_image_cas}}
+          name: cluster-autoscaler
+          resources:
+            limits:
+              cpu: 100m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 300Mi
+          command:
+            - ./cluster-autoscaler
+            - '--v=1'
+            - '--scan-interval=10s'
+            - '--expander=random'
+            - '--stderrthreshold=info'
+            - '--cloud-provider=grpc'
+            - '--cloud-config=/etc/cluster/config/grpc-config.json'
+            - '--kubeconfig=/etc/kubernetes/config'
+            - '--nodes={{vmware_min_nodes}}:{{vmware_max_nodes}}:true/{{cluster_node_group_name}}'
+            - '--max-nodes-total={{vmware_max_nodes}}'
+            - '--cores-total={{vmware_cores_total}}'
+            - '--memory-total={{vmware_memory_total}}'
+            - '--node-autoprovisioning-enabled'
+            - '--max-autoprovisioned-node-group-count={{vmware_max_ap_node_groups}}'
+            - '--scale-down-enabled={{vmware_scaledown_enabled}}'
+            - '--scale-down-delay-after-add={{vmware_scaledown_delay_after_add}}'
+            - '--scale-down-delay-after-delete={{vmware_scaledown_delay_after_delete}}'
+            - '--scale-down-delay-after-failure={{vmware_scaledown_delay_after_failure}}'
+            - '--scale-down-unneeded-time={{vmware_scaledown_unneeded_time}}'
+            - '--scale-down-unready-time={{vmware_scaledown_unready_time}}'
+            - '--unremovable-node-recheck-timeout={{vmware_unremovable_node_recheck_timeout}}'
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: cluster-socket
+              mountPath: /var/run/cluster-autoscaler
+            - name: ssl-certs
+              mountPath: /etc/ssl/certs/ca-certificates.crt
+              readOnly: true
+            - name: kubernetes
+              mountPath: /etc/kubernetes/config
+              readOnly: true
+            - name: kubernetes-cas-config
+              mountPath: /etc/cluster/config
+              readOnly: true
+      volumes:
+        - name: cluster-socket
+          emptyDir: {}
+        - name: kubernetes
+          hostPath:
+            path: /etc/kubernetes/admin.conf
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs/ca-certificates.crt
+        - name: kubernetes-cas-config
+          configMap:
+            name: kubernetes-cas-config
+            defaultMode: 0400
+        - name: kubernetes-cas-vol
+          persistentVolumeClaim:
+            claimName: kubernetes-cas-pvc

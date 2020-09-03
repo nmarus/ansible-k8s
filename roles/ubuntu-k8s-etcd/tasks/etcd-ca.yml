@@ -1,0 +1,16 @@
+---
+- name: Check if etcd ca cert is already generated
+  stat:
+    path: /etc/kubernetes/pki/etcd/ca.crt
+  register: etcd_ca_crt
+
+- name: Check if etcd ca key is already generated
+  stat:
+    path: /etc/kubernetes/pki/etcd/ca.key
+  register: etcd_ca_key
+
+- name: Generate the certificate authority if cert or key is not found
+  when: etcd_ca_crt.stat.exists == false or etcd_ca_key.stat.exists == false
+  become: true
+  become_method: sudo
+  shell: kubeadm init phase certs etcd-ca

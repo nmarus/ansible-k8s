@@ -1,0 +1,10 @@
+---
+- name: Apply annotations and labels node
+  shell: |
+    kubectl annotate node {{cluster_node_name}} --overwrite=true \
+      cluster.autoscaler.nodegroup/name={{cluster_node_group_name}} \
+      cluster.autoscaler.nodegroup/node-index=0 \
+      cluster.autoscaler.nodegroup/autoprovision=false \
+      cluster-autoscaler.kubernetes.io/scale-down-disabled=true
+    kubectl label node {{cluster_node_name}} --overwrite=true \
+      cluster.autoscaler.nodegroup/name={{cluster_node_group_name}}

@@ -1,0 +1,24 @@
+---
+- name: Install Gluster Client Tools
+  become: true
+  become_method: sudo
+  apt:
+    pkg:
+      - glusterfs-common
+      - glusterfs-client
+      - nfs-common
+      - thin-provisioning-tools
+      - jq
+    state: present
+    force_apt_get: true
+    update_cache: yes
+
+- name: Create symlink for LVM
+  become: true
+  become_method: sudo
+  file:
+    src: /sbin/lvm
+    dest: /usr/sbin/lvm
+    owner: root
+    group: root
+    state: link

@@ -1,0 +1,5 @@
+---
+- name: Prefetch k8s install images
+  become_method: sudo
+  become: true
+  shell: kubeadm config images pull --kubernetes-version=v{{kubernetes_version}}

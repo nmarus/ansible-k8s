@@ -1,0 +1,94 @@
+#cloud-config
+chpasswd:
+  expire: false
+  list: |
+    ubuntu:{{root_password}}
+users:
+  - default
+  - name: ubuntu
+    ssh-authorized-keys:
+      - {{ssh_public_key}}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: sudo
+    shell: /bin/bash
+package_upgrade: false
+write_files:
+  - path: /etc/netplan/01-netcfg.yaml
+    permissions: 0644
+    content: |
+      network:
+        version: 2
+        renderer: networkd
+        ethernets:
+          eth0:
+            dhcp4: yes
+
+  - path: /lib/systemd/system/systemd-machine-id.service
+    permissions: 0644
+    content: |
+      #  This file is part of systemd.
+      #
+      #  systemd is free software; you can redistribute it and/or modify it
+      #  under the terms of the GNU Lesser General Public License as published by
+      #  the Free Software Foundation; either version 2.1 of the License, or
+      #  (at your option) any later version.
+
+      [Unit]
+      Description=Regenerate machine-id if missing
+      Documentation=man:systemd-machine-id(1)
+      DefaultDependencies=no
+      Conflicts=shutdown.target
+      After=systemd-remount-fs.service
+      Before=systemd-sysusers.service sysinit.target shutdown.target
+      ConditionPathIsReadWrite=/etc
+      ConditionFirstBoot=yes
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/bin/systemd-machine-id-setup
+      StandardOutput=tty
+      StandardInput=tty
+      StandardError=tty
+
+      [Install]
+      WantedBy=sysinit.target
+
+  - path: /etc/vmware-tools/tools.conf
+    permissions: 0644
+    content: |
+      [guestinfo]
+      exclude-nics=docker*,veth*,vEthernet*,flannel*,cni*,calico*
+      primary-nics=eth0
+      low-priority-nics=eth1,eth2,eth3
+
+runcmd:
+  # remove dhcp interface
+  - ls /etc/netplan | grep -P "^0[02-9].*$" | sed -E 's,([-_a-zA-Z0-9]*\.yaml),/etc/netplan/\1,g' | xargs -d"\n" rm &> /dev/null
+  - ls /etc/netplan | grep -P "^[1-9].*$" | sed -E 's,([-_a-zA-Z0-9]*\.yaml),/etc/netplan/\1,g' | xargs -d"\n" rm &> /dev/null
+  # update grub
+  - sed -i 's/^GRUB_CMDLINE_LINUX=\"/GRUB_CMDLINE_LINUX=\"net.ifnames=0 biosdevname=0/g' /etc/default/grub
+  - /usr/sbin/update-grub2
+  # remove floppy
+  - rmmod floppy
+  - echo "blacklist floppy" | tee /etc/modprobe.d/blacklist-floppy.conf
+  - dpkg-reconfigure initramfs-tools
+  # fix swap
+  - swapoff --all
+  - sed -ri '/\sswap\s/s/^#?/#/' /etc/fstab
+  # fix ip tables
+  - sysctl net.bridge.bridge-nf-call-iptables=1
+  - sysctl net.bridge.bridge-nf-call-ip6tables=1
+  # fix vm tools
+  - 'echo "disable_vmware_customization: false" >> /etc/cloud/cloud.cfg'
+  # fix vmware guestinfos
+  - sed -i 's/None ]/None, VMwareGuestInfo ]/g' /etc/cloud/cloud.cfg.d/90_dpkg.cfg
+  # fix temp permissions
+  - sed -i 's/^D \/tmp 1777 root root -/#D \/tmp 1777 root root -/g' /usr/lib/tmpfiles.d/tmp.conf
+  # set new machine id
+  - echo -n > /etc/machine-id
+  # enable machine-id service
+  - systemctl enable systemd-machine-id.service
+power_state:
+  timeout: 30
+  mode: reboot

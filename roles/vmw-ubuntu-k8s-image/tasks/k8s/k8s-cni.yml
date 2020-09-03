@@ -1,0 +1,7 @@
+---
+- name: Install Container Networking Plugins
+  become: true
+  become_method: sudo
+  shell: |
+    curl -L "https://github.com/containernetworking/plugins/releases/download/v{{cni_version}}/cni-plugins-linux-amd64-v{{cni_version}}.tgz" | tar -C /opt/cni/bin -xz
+    echo 'export PATH=/opt/cni/bin:$PATH' >> /etc/profile.d/apps-bin-path.sh
