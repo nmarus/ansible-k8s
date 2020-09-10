@@ -1,0 +1,103 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{blackbox_namespace}}
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{blackbox_service_name}}
+  namespace: {{blackbox_namespace}}
+  labels:
+    app.kubernetes.io/name: {{blackbox_service_name}}
+    app.kubernetes.io/instance: {{blackbox_service_name}}
+    app.kubernetes.io/component: service
+spec:
+  selector:
+    app.kubernetes.io/name: {{blackbox_service_name}}
+    app.kubernetes.io/instance: {{blackbox_service_name}}
+    app.kubernetes.io/component: blackbox
+  ports:
+    - name: http
+      protocol: TCP
+      port: 9115
+      targetPort: 9115
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: {{blackbox_service_name}}
+    app.kubernetes.io/instance: {{blackbox_service_name}}
+    app.kubernetes.io/component: blackbox
+  name: {{blackbox_service_name}}
+  namespace: {{blackbox_namespace}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{blackbox_service_name}}
+      app.kubernetes.io/instance: {{blackbox_service_name}}
+      app.kubernetes.io/component: blackbox
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{blackbox_service_name}}
+        app.kubernetes.io/instance: {{blackbox_service_name}}
+        app.kubernetes.io/component: blackbox
+    spec:
+      containers:
+        - name: blackbox
+          image: prom/blackbox-exporter:master
+          args:
+            - --config.file=/config/blackbox.yml
+          resources:
+            limits:
+              cpu: 500m
+              memory: 2500Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config/blackbox.yml
+              subPath: blackbox.yml
+          ports:
+            - containerPort: 9115
+      volumes:
+        - name: config-volume
+          configMap:
+           name: {{blackbox_service_name}}
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    nginx.ingress.kubernetes.io/service-upstream: "true"
+    ingress.kubernetes.io/service-upstream: "true"
+  labels:
+    app.kubernetes.io/name: {{blackbox_service_name}}
+    app.kubernetes.io/instance: {{blackbox_service_name}}
+    app.kubernetes.io/component: ingress
+  name: {{blackbox_service_name}}
+  namespace: {{blackbox_namespace}}
+spec:
+  tls:
+    - hosts:
+        - {{blackbox_fqdn}}
+      secretName: {{blackbox_tls_secret}}
+  rules:
+    - host: {{blackbox_fqdn}}
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: {{blackbox_service_name}}
+              servicePort: 9115

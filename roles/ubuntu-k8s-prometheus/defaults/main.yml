@@ -1,0 +1,10 @@
+---
+prometheus_retention: 24h
+prometheus_namespace: monitoring
+prometheus_service_name: prometheus
+
+blackbox_namespace: monitoring
+blackbox_service_name: blackbox
+
+adapter_namespace: monitoring
+adapter_service_name: prometheus-adapter

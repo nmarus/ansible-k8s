@@ -1,0 +1,68 @@
+---
+- name: Verify config directory /ansible_generated_configs
+  become_method: sudo
+  become: true
+  file:
+    path: /ansible_generated_configs
+    state: directory
+
+- name: Create /ansible_generated_configs/prometheus-blackbox.yaml
+  become: true
+  become_method: sudo
+  template:
+    src: prometheus-blackbox-yaml.j2
+    dest: /ansible_generated_configs/prometheus-blackbox.yaml
+    mode: 0644
+
+- name: Fetch generated /ansible_generated_configs/prometheus-blackbox.yaml
+  become_method: sudo
+  become: true
+  fetch:
+    src: /ansible_generated_configs/prometheus-blackbox.yaml
+    dest: "{{playbook_dir}}/generated"
+
+- name: Apply /ansible_generated_configs/prometheus-blackbox.yaml
+  shell: kubectl apply -f /ansible_generated_configs/prometheus-blackbox.yaml
+
+- name: Create /ansible_generated_configs/blackbox.yml
+  become: true
+  become_method: sudo
+  template:
+    src: prometheus-blackbox-config-yaml.j2
+    dest: /ansible_generated_configs/blackbox.yml
+    mode: 0644
+
+- name: Fetch generated /ansible_generated_configs/blackbox.yml
+  become_method: sudo
+  become: true
+  fetch:
+    src: /ansible_generated_configs/blackbox.yml
+    dest: "{{playbook_dir}}/generated"
+
+- name: Create/update configmap from /ansible_generated_configs/blackbox.yml
+  shell: |
+    kubectl -n {{blackbox_namespace}} \
+      create configmap {{blackbox_service_name}} \
+      --from-file /ansible_generated_configs/blackbox.yml \
+      -o yaml --dry-run | kubectl apply -f -
+
+- name: Update {{blackbox_service_name}} service
+  shell: |
+    kubectl -n {{blackbox_namespace}} \
+      patch deployment {{blackbox_service_name}} \
+      -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"date\":\"`date +'%s'`\"}}}}}"
+
+- name: Create {{blackbox_namespace}}/{{blackbox_tls_secret}} from default/tls-secret
+  ignore_errors: true
+  shell: |
+    kubectl -n default get secret tls-secret -o json \
+      | jq '.metadata.name = "{{blackbox_tls_secret}}"' \
+      | jq '.metadata.namespace = "{{blackbox_namespace}}"' \
+      | kubectl create -f -
+
+- name: Clean up temp files in /ansible_generated_configs
+  become_method: sudo
+  become: true
+  file:
+    path: /ansible_generated_configs
+    state: absent

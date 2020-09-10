@@ -1,0 +1,68 @@
+---
+- name: Verify config directory /ansible_generated_configs
+  become_method: sudo
+  become: true
+  file:
+    path: /ansible_generated_configs
+    state: directory
+
+- name: Create /ansible_generated_configs/prometheus-service.yaml
+  become: true
+  become_method: sudo
+  template:
+    src: prometheus-service-yaml.j2
+    dest: /ansible_generated_configs/prometheus-service.yaml
+    mode: 0644
+
+- name: Fetch generated /ansible_generated_configs/prometheus-service.yaml
+  become_method: sudo
+  become: true
+  fetch:
+    src: /ansible_generated_configs/prometheus-service.yaml
+    dest: "{{playbook_dir}}/generated"
+
+- name: Apply /ansible_generated_configs/prometheus-service.yaml
+  shell: kubectl apply -f /ansible_generated_configs/prometheus-service.yaml
+
+- name: Create /ansible_generated_configs/prometheus.yml
+  become: true
+  become_method: sudo
+  template:
+    src: prometheus-config-yaml.j2
+    dest: /ansible_generated_configs/prometheus.yml
+    mode: 0644
+
+- name: Fetch generated /ansible_generated_configs/prometheus.yml
+  become_method: sudo
+  become: true
+  fetch:
+    src: /ansible_generated_configs/prometheus.yml
+    dest: "{{playbook_dir}}/generated"
+
+- name: Create/update configmap from /ansible_generated_configs/prometheus-config.yaml
+  shell: |
+    kubectl -n {{prometheus_namespace}} \
+      create configmap {{prometheus_service_name}} \
+      --from-file /ansible_generated_configs/prometheus.yml \
+      -o yaml --dry-run | kubectl apply -f -
+
+- name: Update {{prometheus_service_name}} service
+  shell: |
+    kubectl -n {{prometheus_namespace}} \
+      patch deployment {{prometheus_service_name}} \
+      -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"date\":\"`date +'%s'`\"}}}}}"
+
+- name: Copy default/tls-secret to {{prometheus_namespace}}/{{prometheus_tls_secret}}
+  ignore_errors: true
+  shell: |
+    kubectl -n default get secret tls-secret -o json \
+      | jq '.metadata.name = "{{prometheus_tls_secret}}"' \
+      | jq '.metadata.namespace = "{{prometheus_namespace}}"' \
+      | kubectl create -f -
+
+- name: Clean up temp files in /ansible_generated_configs
+  become_method: sudo
+  become: true
+  file:
+    path: /ansible_generated_configs
+    state: absent

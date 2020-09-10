@@ -1,0 +1,4 @@
+---
+# - include_tasks: prometheus-blackbox.yml
+- include_tasks: prometheus-service.yml
+# - include_tasks: prometheus-adapter.yml

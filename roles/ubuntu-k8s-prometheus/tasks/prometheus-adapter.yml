@@ -1,0 +1,68 @@
+---
+- name: Verify config directory /ansible_generated_configs
+  become_method: sudo
+  become: true
+  file:
+    path: /ansible_generated_configs
+    state: directory
+
+- name: Create /ansible_generated_configs/prometheus-adapter.yaml
+  become: true
+  become_method: sudo
+  template:
+    src: prometheus-adapter-yaml.j2
+    dest: /ansible_generated_configs/prometheus-adapter.yaml
+    mode: 0644
+
+- name: Fetch generated /ansible_generated_configs/prometheus-adapter.yaml
+  become_method: sudo
+  become: true
+  fetch:
+    src: /ansible_generated_configs/prometheus-adapter.yaml
+    dest: "{{playbook_dir}}/generated"
+
+- name: Apply /ansible_generated_configs/prometheus-adapter.yaml
+  shell: kubectl apply -f /ansible_generated_configs/prometheus-adapter.yaml
+
+- name: Create /ansible_generated_configs/config.yaml
+  become: true
+  become_method: sudo
+  template:
+    src: prometheus-adapter-config-yaml.j2
+    dest: /ansible_generated_configs/config.yaml
+    mode: 0644
+
+- name: Fetch generated /ansible_generated_configs/config.yaml
+  become_method: sudo
+  become: true
+  fetch:
+    src: /ansible_generated_configs/config.yaml
+    dest: "{{playbook_dir}}/generated"
+
+- name: Create/update configmap from /ansible_generated_configs/config.yaml
+  shell: |
+    kubectl -n {{adapter_namespace}} \
+      create configmap {{adapter_service_name}} \
+      --from-file /ansible_generated_configs/config.yaml \
+      -o yaml --dry-run | kubectl apply -f -
+
+- name: Update {{adapter_service_name}} service
+  shell: |
+    kubectl -n {{adapter_namespace}} \
+      patch deployment {{adapter_service_name}} \
+      -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"date\":\"`date +'%s'`\"}}}}}"
+
+- name: Create {{adapter_namespace}}/{{adapter_tls_secret}} from default/tls-secret
+  ignore_errors: true
+  shell: |
+    kubectl -n default get secret tls-secret -o json \
+      | jq '.metadata.name = "{{adapter_tls_secret}}"' \
+      | jq '.metadata.namespace = "{{adapter_namespace}}"' \
+      | kubectl create -f -
+
+- name: Clean up temp files in /ansible_generated_configs
+  become_method: sudo
+  become: true
+  file:
+    path: /ansible_generated_configs
+    state: absent
