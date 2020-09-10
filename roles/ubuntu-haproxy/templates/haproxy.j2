@@ -11,7 +11,7 @@ global
   group haproxy
   daemon
 
-{% if haproxy_tls_enable %}
+{% if haproxy_frontend_mode == 'https' or (haproxy_frontend_mode == 'http' and haproxy_redirect_http) %}
   # Default SSL material locations
   ca-base /etc/ssl/certs
   crt-base /etc/ssl/private
@@ -23,9 +23,11 @@ global
 
 defaults
   log global
-  mode {{haproxy_frontend_mode}}
   option dontlognull
-{% if haproxy_frontend_mode == 'http' %}
+{% if haproxy_frontend_mode == 'tcp' or haproxy_frontend_mode == 'tls' %}
+  mode tcp
+{% else %}
+  mode http
   option forwardfor
 {% endif %}
 
@@ -41,7 +43,7 @@ defaults
   errorfile 503 /etc/haproxy/errors/503.http
   errorfile 504 /etc/haproxy/errors/504.http
 
-{% if haproxy_stats_enable and haproxy_frontend_mode == 'http' %}
+{% if haproxy_stats_enable and (haproxy_frontend_mode == 'http' or haproxy_frontend_mode == 'https') %}
   stats enable
   stats hide-version
   stats refresh 30s
@@ -51,45 +53,51 @@ defaults
   stats auth {{haproxy_stats_user}}:{{haproxy_stats_password}}
 {% endif %}
 
+{% if haproxy_frontend_mode == 'tcp' or haproxy_frontend_mode == 'http' %}
 frontend tcp_in
   bind *:{{haproxy_frontend_tcp_port}}
-  mode {{haproxy_frontend_mode}}
-{% if haproxy_frontend_mode == 'http' %}
-  reqadd X-Forwarded-Proto:\ http
-{% else %}
+  default_backend backend_{{haproxy_backend_name}}
+{% if haproxy_frontend_mode == 'tcp' %}
+  mode tcp
   timeout client 3h
   option tcplog
-{% endif %}
-{% if haproxy_frontend_mode == 'http' and haproxy_redirect_http and haproxy_tls_enable %}
+{% else %}
+  mode http
+  reqadd X-Forwarded-Proto:\ http
+{% if haproxy_frontend_mode == 'http' and haproxy_redirect_http %}
   redirect scheme https
 {% endif %}
-  default_backend backend_{{haproxy_backend_name}}
+{% endif %}
+{% endif %}
 
-{% if haproxy_tls_enable %}
+{% if haproxy_frontend_mode == 'tls' or haproxy_frontend_mode == 'https' or (haproxy_frontend_mode == 'http' and haproxy_redirect_http) %}
 frontend tls_in
   bind *:{{haproxy_frontend_tls_port}} ssl crt /etc/ssl/{{haproxy_app_domain_name}}/{{haproxy_app_domain_name}}.pem
-  mode {{haproxy_frontend_mode}}
-{% if haproxy_frontend_mode == 'http' %}
-  reqadd X-Forwarded-Proto:\ https
-{% else %}
+  default_backend backend_{{haproxy_backend_name}}
+{% if haproxy_frontend_mode == 'tls' %}
+  mode tcp
   option tcplog
   timeout client 3h
+{% else %}
+  mode http
+  reqadd X-Forwarded-Proto:\ https
 {% endif %}
-  default_backend backend_{{haproxy_backend_name}}
 {% endif %}
 
 backend backend_{{haproxy_backend_name}}
-  mode {{haproxy_backend_mode}}
-{% if haproxy_backend_mode == 'tcp' %}
+{% if haproxy_backend_mode == 'tcp' or haproxy_backend_mode == 'tls' %}
+  mode tcp
   timeout server 3h
+{% else %}
+  mode http
 {% endif %}
   option tcp-check
   option log-health-checks
   balance {{haproxy_backend_balance}}
 {% for i in range(0, haproxy_backend_servers|length) %}
 {% if haproxy_backend_check %}
-  server {{haproxy_backend_name}}{{i|int+1}} {{haproxy_backend_servers[i]}}:{{haproxy_backend_port}} check port {{haproxy_backend_port}}
+  server {{haproxy_backend_name}}{{i|int+1}} {{haproxy_backend_servers[i]}}:{{haproxy_backend_port}}{% if haproxy_backend_mode == 'https' or haproxy_backend_mode == 'tls' %} ssl verify none{% endif %} check port {{haproxy_backend_port}}
 {% else %}
-  server {{haproxy_backend_name}}{{i|int+1}} {{haproxy_backend_servers[i]}}:{{haproxy_backend_port}}
+  server {{haproxy_backend_name}}{{i|int+1}} {{haproxy_backend_servers[i]}}:{{haproxy_backend_port}}{% if haproxy_backend_mode == 'https' or haproxy_backend_mode == 'tls' %} ssl verify none{% endif %}
 {% endif %}
 {% endfor %}
