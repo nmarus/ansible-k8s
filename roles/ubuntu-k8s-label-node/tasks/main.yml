@@ -1,0 +1,11 @@
+---
+- name: Get node name for {{node_ip_address}} in k8s cluster
+  shell: kubectl get nodes -o wide | grep {{node_ip_address}} | awk '{print $1}'
+  register: found_node
+
+- set_fact:
+    node_name: "{{found_node.stdout}}"
+
+- name: Label Node with "{{node_label}}" - {{node_name}} ({{node_ip_address}})
+  run_once: true
+  shell: kubectl label node {{node_name}} {{node_label}} --overwrite
