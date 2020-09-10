@@ -246,10 +246,16 @@ spec:
         app.kubernetes.io/name: {{nginx_controller_service_name}}
         app.kubernetes.io/instance: {{nginx_controller_service_name}}
         app.kubernetes.io/component: controller
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "10254"
+        prometheus.io/path: "/metrics"
     spec:
       hostNetwork: true
+{% if nginx_node_label is defined and nginx_node_label_value is defined %}
       nodeSelector:
-        nginxnode: {{nginx_controller_service_name}}
+        {{nginx_node_label}}: {{nginx_node_label_value}}
+{% endif %}
       serviceAccountName: {{nginx_controller_service_name}}
       tolerations:
         - operator: Exists

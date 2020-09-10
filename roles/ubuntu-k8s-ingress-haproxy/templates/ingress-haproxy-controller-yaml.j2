@@ -203,10 +203,16 @@ spec:
     metadata:
       labels:
         run: {{haproxy_controller_service_name}}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "10254"
+        prometheus.io/path: "/metrics"
     spec:
       hostNetwork: true
+{% if haproxy_node_label is defined and haproxy_node_label_value is defined %}
       nodeSelector:
-        haproxynode: {{haproxy_controller_service_name}}
+        {{haproxy_node_label}}: {{haproxy_node_label_value}}
+{% endif %}
       serviceAccountName: {{haproxy_controller_namespace}}
       tolerations:
         - operator: Exists

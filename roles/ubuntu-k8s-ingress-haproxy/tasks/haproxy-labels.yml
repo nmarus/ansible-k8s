@@ -1,8 +1,0 @@
----
-- name: Get master nodes in k8s cluster
-  shell: kubectl get nodes | grep master |  awk '{print $1}'
-  register: master_nodes
-
-- name: Apply labels to master nodes
-  shell: kubectl label node {{item}} --overwrite=true haproxynode={{haproxynode}}
-  with_items: "{{master_nodes.stdout_lines}}"
