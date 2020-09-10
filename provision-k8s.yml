@@ -319,6 +319,24 @@
         blackbox_fqdn: blackbox.{{network_domain_name}}
 
 #
+# Setup k8s grafana (run on one k8s manager)
+#
+
+- hosts: k8s_manager
+  tasks:
+    - import_role:
+        name: ubuntu-k8s-grafana
+      run_once: true
+      tags:
+        - never
+        - k8s-grafana
+      vars:
+        grafana_namespace: grafana
+        grafana_services_name: grafana
+        grafana_fqdn: grafana.{{network_domain_name}}
+        grafana_tls_secret: "{{network_domain_name}}.tls-secret"
+
+#
 # Setup k8s dashboard (run on one k8s manager)
 #
 
