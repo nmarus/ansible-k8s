@@ -1,5 +1,46 @@
 ---
 #
+# Install HAProxy Loadbalancer for manager API access
+#
+
+- hosts: k8s_loadbalancer_manager
+  tasks:
+    - import_role:
+        name: ubuntu-haproxy
+      tags:
+        - loadbalancer-manager
+      vars:
+        haproxy_frontend_mode: tcp
+        haproxy_frontend_tcp_port: 6443
+        haproxy_backend_mode: tcp
+        haproxy_backend_port: 6443
+        haproxy_backend_balance: leastconn
+        haproxy_backend_servers: "{{groups['k8s_manager']|list}}"
+        haproxy_app_domain_name: "{{network_domain_name}}"
+
+#
+# Install HAProxy Loadbalancer for router http/https access
+#
+
+- hosts: k8s_loadbalancer_router
+  tasks:
+    - import_role:
+        name: ubuntu-haproxy
+      tags:
+        - loadbalancer-router
+      vars:
+        haproxy_frontend_mode: http
+        haproxy_redirect_http: true
+        haproxy_stats_enable: true
+        haproxy_frontend_tcp_port: 80
+        haproxy_frontend_tls_port: 443
+        haproxy_backend_mode: https
+        haproxy_backend_port: 443
+        haproxy_backend_balance: roundrobin
+        haproxy_backend_servers: "{{groups['k8s_router']|list}}"
+        haproxy_app_domain_name: "{{network_domain_name}}"
+
+#
 # Setup GlusterFS Service (run on all glusterfs nodes)
 #
 
@@ -29,26 +70,6 @@
         glusterfs_heketi_gfs_volume: heketi_data
 
 #
-# Install HAProxy Loadbalancer (run on haproxy node)
-#
-
-- hosts: k8s_haproxy
-  tasks:
-    - import_role:
-        name: ubuntu-haproxy
-      tags:
-        - haproxy
-      vars:
-        haproxy_tls_enable: false
-        haproxy_frontend_mode: tcp
-        haproxy_frontend_tcp_port: 6443
-        haproxy_backend_mode: tcp
-        haproxy_backend_port: 6443
-        haproxy_backend_balance: leastconn
-        haproxy_backend_servers: "{{groups['k8s_manager']|list}}"
-        haproxy_app_domain_name: "{{network_domain_name}}"
-
-#
 # Install k8s etcd cluster (run on all etcd nodes)
 #
 
@@ -66,7 +87,7 @@
 # Install k8s manager and workers (run on all k8s cluster nodes)
 #
 
-- hosts: k8s_manager:k8s_worker
+- hosts: k8s_manager:k8s_worker:k8s_router
   tasks:
     - import_role:
         name: ubuntu-k8s-install
@@ -75,15 +96,15 @@
       vars:
         k8s_etcd_nodes: "{{groups['k8s_etcd']}}"
         k8s_manager_nodes: "{{groups['k8s_manager']}}"
-        k8s_worker_nodes: "{{groups['k8s_worker']}}"
-        load_balancer_dns: "{{groups['k8s_haproxy'][0]}}"
+        k8s_worker_nodes: "{{groups['k8s_worker'] + groups['k8s_router']}}"
+        load_balancer_dns: "{{groups['k8s_loadbalancer_manager'][0]}}"
         vmware_node_group_name: vmware-ca-k8s
 
 #
 # Setup k8s to use Gluster for storage (run on all k8s cluster nodes)
 #
 
-- hosts: k8s_manager:k8s_worker
+- hosts: k8s_manager:k8s_worker:k8s_router
   tasks:
     - import_role:
         name: ubuntu-k8s-storage
@@ -122,42 +143,31 @@
         heketi_destroy_device: true
 
 #
-# Set k8s Cluster Autoscaling
+# Label and Taint Router Nodes to restrict workloads
 #
 
 - hosts: k8s_manager
+  tags:
+    - k8s-tag-routers
   tasks:
-    - import_role:
-        name: ubuntu-k8s-vmw-cluster-autoscaler
-      tags:
-        - never
-        - k8s-cas
+    - include_role:
+        name: ubuntu-k8s-taint-node
       run_once: true
       vars:
-        vmware_network_domain: "{{network_domain_name}}"
-        vmware_network_name: "{{vcenter_network}}"
-        vmware_network_dns:
-          - "8.8.8.8"
-          - "8.8.4.4"
-        vmware_vcenter_host: "https://{{vcenter_hostname}}"
-        vmware_vcenter_user: "{{vcenter_username}}"
-        vmware_vcenter_pass: "{{vcenter_password}}"
-        vmware_vcenter_insecure: "true"
-        vmware_vcenter_datacenter: "{{vcenter_datacenter}}"
-        vmware_vcenter_datastore: "{{vcenter_datastore}}"
-        vmware_vcenter_resourcepool: k8s-worker-1-cas
-        vmware_vm_name: k8s-worker-1
-        vmware_target_image: "{{vmw_base_image}}"
-        vmware_max_nodes: 10
-        # k8s cluster
-        cluster_node_name: k8s-worker-1
-        cluster_node_group_name: k8s-worker-1-cas
-        cluster_manager_host: "{{groups['k8s_haproxy'][0]}}"
-        cluster_manager_port: 6443
-        cluster_ssh_private_key_path: ".ssh/id_rsa"
-        # custom docker images
-        # docker_image_vas: "42.42.42.100:5000/nmarus/vsphere-autoscaler:v1.18.2"
-        # docker_image_cas: "42.42.42.100:5000/nmarus/cluster-autoscaler:v1.18.2"
+        node_ip_address: "{{item}}"
+        node_taint: "routernode:NoSchedule"
+      loop_control:
+        extended: yes
+      loop: "{{groups['k8s_router']}}"
+    - include_role:
+        name: ubuntu-k8s-label-node
+      run_once: true
+      vars:
+        node_ip_address: "{{item}}"
+        node_label: "role=router"
+      loop_control:
+        extended: yes
+      loop: "{{groups['k8s_router']}}"
 
 #
 # Setup k8s ingress with haproxy (run on one k8s manager)
@@ -171,6 +181,9 @@
       tags:
         - never
         - k8s-ingress-haproxy
+      vars:
+        haproxy_node_label: role
+        haproxy_node_label_value: router
 
 #
 # Setup k8s ingress with traefik (run on one k8s manager)
@@ -197,6 +210,9 @@
       tags:
         - never
         - k8s-ingress-nginx
+      vars:
+        nginx_node_label: role
+        nginx_node_label_value: router
 
 #
 # Setup k8s descheduler (run on one k8s manager)
@@ -271,7 +287,36 @@
       vars:
         registry_ssl_generate: true
         registry_ssl_domain: "registry.{{network_domain_name}}"
-        registry_ssl_local_save: "./certs"
+        registry_ssl_local_save: "./cert s"
+
+#
+# Setup k8s prometheus (run on one k8s manager)
+#
+
+- hosts: k8s_manager
+  tasks:
+    - import_role:
+        name: ubuntu-k8s-prometheus
+      run_once: true
+      tags:
+        - never
+        - k8s-prometheus
+      vars:
+        # namespaces for objects generated
+        prometheus_namespace: kube-monitoring
+        blackbox_namespace: kube-monitoring
+        adapter_namespace: kube-monitoring
+        # names used to generate objects
+        prometheus_service_name: prometheus
+        blackbox_service_name: blackbox
+        adapter_service_name: kube-prometheus-adapter
+        # tls config (requires tls-secret to exist in default namespace)
+        prometheus_tls_secret: "{{network_domain_name}}.tls-secret"
+        blackbox_tls_secret: "{{network_domain_name}}.tls-secret"
+        adapter_tls_secret: "{{network_domain_name}}.tls-secret"
+        # external name for web interfaces
+        prometheus_fqdn: prometheus.{{network_domain_name}}
+        blackbox_fqdn: blackbox.{{network_domain_name}}
 
 #
 # Setup k8s dashboard (run on one k8s manager)
@@ -308,6 +353,45 @@
         portainer_services_name: portainer
         portainer_fqdn: portainer.{{network_domain_name}}
         portainer_tls_secret: "{{network_domain_name}}.tls-secret"
+
+#
+# Set k8s Cluster Autoscaling
+#
+
+- hosts: k8s_manager
+  tasks:
+    - import_role:
+        name: ubuntu-k8s-vmw-cluster-autoscaler
+      tags:
+        - never
+        - k8s-cas
+      run_once: true
+      vars:
+        vmware_network_domain: "{{network_domain_name}}"
+        vmware_network_name: "{{vcenter_network}}"
+        vmware_network_dns:
+          - "8.8.8.8"
+          - "8.8.4.4"
+        vmware_vcenter_host: "https://{{vcenter_hostname}}"
+        vmware_vcenter_user: "{{vcenter_username}}"
+        vmware_vcenter_pass: "{{vcenter_password}}"
+        vmware_vcenter_insecure: "true"
+        vmware_vcenter_datacenter: "{{vcenter_datacenter}}"
+        vmware_vcenter_datastore: "{{vcenter_datastore}}"
+        vmware_vcenter_resourcepool: k8s-worker-1-cas
+        vmware_vm_name: "{{worker_prefix}}1"
+        vmware_target_image: "{{vmw_base_image}}"
+        vmware_max_nodes: 10
+        # k8s cluster
+        cluster_node_name: "{{worker_prefix}}1"
+        cluster_node_group_name: "{{worker_prefix}}1-cas"
+        cluster_manager_host: "{{groups['k8s_loadbalancer_manager'][0]}}"
+        cluster_manager_port: 6443
+        cluster_ssh_private_key_path: ".ssh/id_rsa"
+        # custom docker images
+        docker_image_vas: "42.42.42.100:5000/nmarus/vsphere-autoscaler:v1.18.2"
+        docker_image_cas: "42.42.42.100:5000/nmarus/cluster-autoscaler:v1.18.2"
+
 #
 # Utility Playbooks
 #

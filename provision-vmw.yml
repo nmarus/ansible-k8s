@@ -8,10 +8,13 @@
     - include_role:
         name: vmw-create-from-template
       vars:
-        vm_name: "k8s-glusterfs-{{ansible_loop.index}}"
-        vm_hostname: "k8s-glusterfs-{{ansible_loop.index}}"
+        vm_name: "{{glusterfs_prefix}}{{ansible_loop.index}}"
+        vm_hostname: "{{glusterfs_prefix}}{{ansible_loop.index}}"
         vm_template: "{{vmw_base_image}}"
         network_ip_address: "{{item}}"
+        hw_memory: 4096
+        hw_cpus: 2
+        hw_disk: 20
       loop_control:
         extended: yes
       loop: "{{groups['k8s_glusterfs']|list}}"
@@ -21,23 +24,13 @@
     - include_role:
         name: vmw-create-from-template
       vars:
-        vm_name: "k8s-haproxy-{{ansible_loop.index}}"
-        vm_hostname: "k8s-haproxy-{{ansible_loop.index}}"
+        vm_name: "{{etcd_prefix}}{{ansible_loop.index}}"
+        vm_hostname: "{{etcd_prefix}}{{ansible_loop.index}}"
         vm_template: "{{vmw_base_image}}"
         network_ip_address: "{{item}}"
-      loop_control:
-        extended: yes
-      loop: "{{groups['k8s_haproxy']|list}}"
-
-- hosts: localhost
-  tasks:
-    - include_role:
-        name: vmw-create-from-template
-      vars:
-        vm_name: "k8s-etcd-{{ansible_loop.index}}"
-        vm_hostname: "k8s-etcd-{{ansible_loop.index}}"
-        vm_template: "{{vmw_base_image}}"
-        network_ip_address: "{{item}}"
+        hw_memory: 4096
+        hw_cpus: 2
+        hw_disk: 20
       loop_control:
         extended: yes
       loop: "{{groups['k8s_etcd']|list}}"
@@ -47,10 +40,13 @@
     - include_role:
         name: vmw-create-from-template
       vars:
-        vm_name: "k8s-manager-{{ansible_loop.index}}"
-        vm_hostname: "k8s-manager-{{ansible_loop.index}}"
+        vm_name: "{{manager_prefix}}{{ansible_loop.index}}"
+        vm_hostname: "{{manager_prefix}}{{ansible_loop.index}}"
         vm_template: "{{vmw_base_image}}"
         network_ip_address: "{{item}}"
+        hw_memory: 4096
+        hw_cpus: 2
+        hw_disk: 20
       loop_control:
         extended: yes
       loop: "{{groups['k8s_manager']|list}}"
@@ -60,13 +56,73 @@
     - include_role:
         name: vmw-create-from-template
       vars:
-        vm_name: "k8s-worker-{{ansible_loop.index}}"
-        vm_hostname: "k8s-worker-{{ansible_loop.index}}"
+        vm_name: "{{router_prefix}}{{ansible_loop.index}}"
+        vm_hostname: "{{router_prefix}}{{ansible_loop.index}}"
         vm_template: "{{vmw_base_image}}"
         network_ip_address: "{{item}}"
+        hw_memory: 4096
+        hw_cpus: 2
+        hw_disk: 20
+      loop_control:
+        extended: yes
+      loop: "{{groups['k8s_router']|list}}"
+
+- hosts: localhost
+  tasks:
+    - include_role:
+        name: vmw-create-from-template
+      vars:
+        vm_name: "{{worker_prefix}}{{ansible_loop.index}}"
+        vm_hostname: "{{worker_prefix}}{{ansible_loop.index}}"
+        vm_template: "{{vmw_base_image}}"
+        network_ip_address: "{{item}}"
+        hw_memory: 4096
+        hw_cpus: 2
+        hw_disk: 20
       loop_control:
         extended: yes
       loop: "{{groups['k8s_worker']|list}}"
+
+
+- hosts: localhost
+  tasks:
+    - include_role:
+        name: vmw-create-from-template
+      vars:
+        vm_name: "{{manager_prefix}}loadbalancer"
+        vm_hostname: "{{manager_prefix}}loadbalancer"
+        vm_template: "{{vmw_base_image}}"
+        network_ip_address: "{{groups['k8s_loadbalancer_manager'][0]}}"
+        hw_memory: 4096
+        hw_cpus: 2
+        hw_disk: 20
+
+- hosts: localhost
+  tasks:
+    - include_role:
+        name: vmw-create-from-template
+      vars:
+        vm_name: "{{router_prefix}}loadbalancer"
+        vm_hostname: "{{router_prefix}}loadbalancer"
+        vm_template: "{{vmw_base_image}}"
+        network_ip_address: "{{groups['k8s_loadbalancer_router'][0]}}"
+        hw_memory: 4096
+        hw_cpus: 2
+        hw_disk: 20
+
+- hosts: localhost
+  tasks:
+    - name: "Waiting for VMs to finish setup"
+      wait_for:
+        host: "{{item}}"
+        port: 22
+        state: started
+        delay: 0
+        sleep: 1
+        timeout: 600
+      loop_control:
+        extended: yes
+      loop: "{{(groups['k8s_glusterfs'] + groups['k8s_etcd'] + groups['k8s_loadbalancer_manager'] + groups['k8s_manager'] + groups['k8s_loadbalancer_router'] + groups['k8s_router'] + groups['k8s_worker'])|list}}"
 
 #
 # Add Secondary Disk(s) to Ubuntu VMs
@@ -77,7 +133,7 @@
     - name: "Add Secondary Disk 1 to Virtual Machine"
       local_action:
         module: vmware_guest_disk
-        name: "k8s-glusterfs-{{ansible_loop.index}}"
+        name: "{{glusterfs_prefix}}{{ansible_loop.index}}"
         hostname: "{{vcenter_hostname}}"
         username: "{{vcenter_username}}"
         password: "{{vcenter_password}}"
@@ -100,7 +156,7 @@
     - name: "Add Secondary Disk 2 to Virtual Machine"
       local_action:
         module: vmware_guest_disk
-        name: "k8s-glusterfs-{{ansible_loop.index}}"
+        name: "{{glusterfs_prefix}}{{ansible_loop.index}}"
         hostname: "{{vcenter_hostname}}"
         username: "{{vcenter_username}}"
         password: "{{vcenter_password}}"
@@ -161,6 +217,9 @@
 # Remove ALL Virtual Machines from vCenter
 - hosts: all
   tasks:
+    - name: Gather meta data for VM
+      set_fact:
+        vm_name: "{{hostvars[inventory_hostname].ansible_facts.vm_name}}"
     - import_role:
         name: vmw-remove-hosts
       tags:
