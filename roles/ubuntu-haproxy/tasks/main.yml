@@ -37,7 +37,7 @@
   become: true
   fetch:
     src: /etc/haproxy/haproxy.cfg
-    dest: "{{playbook_dir}}/generated"
+    dest: "{{playbook_dir}}/config"
 
 - name: Restart HAProxy service
   become: true

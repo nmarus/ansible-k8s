@@ -1,9 +1,4 @@
 ---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{adapter_namespace}}
----
 apiVersion: apiregistration.k8s.io/v1beta1
 kind: APIService
 metadata:
@@ -174,18 +169,19 @@ spec:
           - --prometheus-url=http://{{prometheus_service_name}}.{{prometheus_namespace}}.svc:9090/
           - --metrics-relist-interval=1m
           - --v=10
-          - --config=/etc/adapter/config.yaml
+          - --config=/config/prom-adapter-config.yaml
         ports:
           - containerPort: 6443
         volumeMounts:
-          - mountPath: /var/run/serving-cert
-            name: cert
+          - name: cert
+            mountPath: /var/run/serving-cert
             readOnly: true
-          - mountPath: /etc/adapter/
-            name: config
+          - name: config
+            mountPath: /config
             readOnly: true
-          - mountPath: /tmp
-            name: tmp
+          - name: tmp
+            mountPath: /tmp
+
       volumes:
         - name: cert
           secret:

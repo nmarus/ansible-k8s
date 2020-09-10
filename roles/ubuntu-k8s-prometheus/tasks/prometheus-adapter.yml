@@ -19,31 +19,31 @@
   become: true
   fetch:
     src: /ansible_generated_configs/prometheus-adapter.yaml
-    dest: "{{playbook_dir}}/generated"
+    dest: "{{playbook_dir}}/config"
 
 - name: Apply /ansible_generated_configs/prometheus-adapter.yaml
   shell: kubectl apply -f /ansible_generated_configs/prometheus-adapter.yaml
 
-- name: Create /ansible_generated_configs/config.yaml
+- name: Create /ansible_generated_configs/prom-adapter-config.yaml
   become: true
   become_method: sudo
   template:
     src: prometheus-adapter-config-yaml.j2
-    dest: /ansible_generated_configs/config.yaml
+    dest: /ansible_generated_configs/prom-adapter-config.yaml
     mode: 0644
 
-- name: Fetch generated /ansible_generated_configs/config.yaml
+- name: Fetch generated /ansible_generated_configs/prom-adapter-config.yaml
   become_method: sudo
   become: true
   fetch:
-    src: /ansible_generated_configs/config.yaml
-    dest: "{{playbook_dir}}/generated"
+    src: /ansible_generated_configs/prom-adapter-config.yaml
+    dest: "{{playbook_dir}}/config"
 
-- name: Create/update configmap from /ansible_generated_configs/config.yaml
+- name: Create/update configmap from /ansible_generated_configs/prom-adapter-config.yaml
   shell: |
     kubectl -n {{adapter_namespace}} \
       create configmap {{adapter_service_name}} \
-      --from-file /ansible_generated_configs/config.yaml \
+      --from-file /ansible_generated_configs/prom-adapter-config.yaml \
       -o yaml --dry-run | kubectl apply -f -
 
 - name: Update {{adapter_service_name}} service

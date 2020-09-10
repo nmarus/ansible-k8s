@@ -3,7 +3,7 @@
   become_method: sudo
   become: true
   copy:
-    src: "{{playbook_dir}}/generated/{{k8s_manager_nodes[0]}}/etc/kubernetes/discovery.yaml"
+    src: "{{playbook_dir}}/config/{{k8s_manager_nodes[0]}}/etc/kubernetes/discovery.yaml"
     dest: /etc/kubernetes/discovery.yaml
     mode: 0644
     owner: root
@@ -24,7 +24,7 @@
   become: true
   fetch:
     src: /etc/kubernetes/kubeadmcfg.yaml
-    dest: "{{playbook_dir}}/generated"
+    dest: "{{playbook_dir}}/config"
 
 - name: Join node to k8s as new Control Plane
   become_method: sudo

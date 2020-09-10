@@ -19,7 +19,7 @@
   become: true
   fetch:
     src: /etc/calico/calicoctl.cfg
-    dest: "{{playbook_dir}}/generated"
+    dest: "{{playbook_dir}}/config"
 
 - name: Install calicoctl v{{calicoctl_version}} from github release
   become: true

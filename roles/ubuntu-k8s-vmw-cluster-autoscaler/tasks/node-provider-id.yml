@@ -19,7 +19,7 @@
   become: true
   fetch:
     src: /ansible_generated_configs/node-provider-id.yaml
-    dest: "{{playbook_dir}}/generated"
+    dest: "{{playbook_dir}}/config"
 
 - name: Apply providerID to node
   shell: kubectl patch node {{cluster_node_name}} --patch "$(cat /ansible_generated_configs/node-provider-id.yaml)"

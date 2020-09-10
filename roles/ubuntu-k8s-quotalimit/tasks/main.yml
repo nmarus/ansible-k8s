@@ -19,7 +19,7 @@
   become: true
   fetch:
     src: /ansible_generated_configs/quota-limit.yaml
-    dest: "{{playbook_dir}}/generated"
+    dest: "{{playbook_dir}}/config"
 
 - name: Apply /ansible_generated_configs/quota-limit.yaml
   shell: kubectl apply -f /ansible_generated_configs/quota-limit.yaml

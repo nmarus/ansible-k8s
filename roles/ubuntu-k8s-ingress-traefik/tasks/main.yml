@@ -19,7 +19,7 @@
   become: true
   fetch:
     src: /ansible_generated_configs/ingress-traefik-crd.yaml
-    dest: "{{playbook_dir}}/generated"
+    dest: "{{playbook_dir}}/config"
 
 - name: Apply /ansible_generated_configs/ingress-traefik-crd.yaml
   shell: kubectl apply -f /ansible_generated_configs/ingress-traefik-crd.yaml
@@ -37,7 +37,7 @@
   become: true
   fetch:
     src: /ansible_generated_configs/ingress-traefik-controller.yaml
-    dest: "{{playbook_dir}}/generated"
+    dest: "{{playbook_dir}}/config"
 
 - name: Apply /ansible_generated_configs/ingress-traefik-controller.yaml
   shell: kubectl apply -f /ansible_generated_configs/ingress-traefik-controller.yaml

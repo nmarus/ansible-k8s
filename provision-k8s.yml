@@ -287,7 +287,7 @@
       vars:
         registry_ssl_generate: true
         registry_ssl_domain: "registry.{{network_domain_name}}"
-        registry_ssl_local_save: "./cert s"
+        registry_ssl_local_save: "./certs"
 
 #
 # Setup k8s prometheus (run on one k8s manager)
@@ -303,13 +303,13 @@
         - k8s-prometheus
       vars:
         # namespaces for objects generated
-        prometheus_namespace: kube-monitoring
-        blackbox_namespace: kube-monitoring
-        adapter_namespace: kube-monitoring
+        prometheus_namespace: monitoring
+        blackbox_namespace: monitoring
+        adapter_namespace: monitoring
         # names used to generate objects
-        prometheus_service_name: prometheus
-        blackbox_service_name: blackbox
-        adapter_service_name: kube-prometheus-adapter
+        prometheus_service_name: prometheus-service
+        blackbox_service_name: prometheus-blackbox
+        adapter_service_name: prometheus-adapter
         # tls config (requires tls-secret to exist in default namespace)
         prometheus_tls_secret: "{{network_domain_name}}.tls-secret"
         blackbox_tls_secret: "{{network_domain_name}}.tls-secret"
@@ -331,7 +331,7 @@
         - never
         - k8s-grafana
       vars:
-        grafana_namespace: grafana
+        grafana_namespace: monitoring
         grafana_services_name: grafana
         grafana_fqdn: grafana.{{network_domain_name}}
         grafana_tls_secret: "{{network_domain_name}}.tls-secret"

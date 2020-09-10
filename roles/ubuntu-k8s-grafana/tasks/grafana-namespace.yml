@@ -6,25 +6,23 @@
     path: /ansible_generated_configs
     state: directory
 
-- name: Create /ansible_generated_configs/heketi-storageclass.yaml
+- name: Create /ansible_generated_configs/grafana-namespace.yaml
   become: true
   become_method: sudo
-  vars:
-    heketi_service_port: "{{heketi_nodePort}}"
   template:
-    src: heketi-storageclass-yaml.j2
-    dest: /ansible_generated_configs/heketi-storageclass.yaml
+    src: grafana-namespace-yaml.j2
+    dest: /ansible_generated_configs/grafana-namespace.yaml
     mode: 0644
 
-- name: Fetch generated /ansible_generated_configs/heketi-storageclass.yaml
+- name: Fetch generated /ansible_generated_configs/grafana-namespace.yaml
   become_method: sudo
   become: true
   fetch:
-    src: /ansible_generated_configs/heketi-storageclass.yaml
+    src: /ansible_generated_configs/grafana-namespace.yaml
     dest: "{{playbook_dir}}/config"
 
-- name: Apply k8s heketi storageclass
-  shell: kubectl apply -f /ansible_generated_configs/heketi-storageclass.yaml
+- name: Apply /ansible_generated_configs/grafana-namespace.yaml
+  shell: kubectl apply -f /ansible_generated_configs/grafana-namespace.yaml
 
 - name: Clean up temp files in /ansible_generated_configs
   become_method: sudo

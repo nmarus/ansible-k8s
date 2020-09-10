@@ -32,7 +32,7 @@
   become: true
   fetch:
     src: /ansible_generated_configs/descheduler-service.yaml
-    dest: "{{playbook_dir}}/generated"
+    dest: "{{playbook_dir}}/config"
 
 - name: Create k8s descheduler service
   shell: kubectl apply -f /ansible_generated_configs/descheduler-service.yaml

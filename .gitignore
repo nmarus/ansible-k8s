@@ -17,4 +17,5 @@ Thumbs.db
 *.ova
 /config.ini
 /certs
+/config
 node_modules

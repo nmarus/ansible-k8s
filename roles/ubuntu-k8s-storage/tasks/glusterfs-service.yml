@@ -19,7 +19,7 @@
   become: true
   fetch:
     src: /ansible_generated_configs/glusterfs-service.yaml
-    dest: "{{playbook_dir}}/generated"
+    dest: "{{playbook_dir}}/config"
 
 - name: Create k8s gluster endpoints
   shell: kubectl apply -f /ansible_generated_configs/glusterfs-service.yaml

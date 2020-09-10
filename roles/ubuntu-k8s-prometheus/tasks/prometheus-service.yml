@@ -19,31 +19,31 @@
   become: true
   fetch:
     src: /ansible_generated_configs/prometheus-service.yaml
-    dest: "{{playbook_dir}}/generated"
+    dest: "{{playbook_dir}}/config"
 
 - name: Apply /ansible_generated_configs/prometheus-service.yaml
   shell: kubectl apply -f /ansible_generated_configs/prometheus-service.yaml
 
-- name: Create /ansible_generated_configs/prometheus.yml
+- name: Create /ansible_generated_configs/prometheus-config.yaml
   become: true
   become_method: sudo
   template:
     src: prometheus-config-yaml.j2
-    dest: /ansible_generated_configs/prometheus.yml
+    dest: /ansible_generated_configs/prometheus-config.yaml
     mode: 0644
 
-- name: Fetch generated /ansible_generated_configs/prometheus.yml
+- name: Fetch generated /ansible_generated_configs/prometheus-config.yaml
   become_method: sudo
   become: true
   fetch:
-    src: /ansible_generated_configs/prometheus.yml
-    dest: "{{playbook_dir}}/generated"
+    src: /ansible_generated_configs/prometheus-config.yaml
+    dest: "{{playbook_dir}}/config"
 
 - name: Create/update configmap from /ansible_generated_configs/prometheus-config.yaml
   shell: |
     kubectl -n {{prometheus_namespace}} \
       create configmap {{prometheus_service_name}} \
-      --from-file /ansible_generated_configs/prometheus.yml \
+      --from-file /ansible_generated_configs/prometheus-config.yaml \
       -o yaml --dry-run | kubectl apply -f -
 
 - name: Update {{prometheus_service_name}} service

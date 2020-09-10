@@ -52,7 +52,7 @@
   become: true
   fetch:
     src: /etc/kubernetes/kubeadmcfg.yaml
-    dest: "{{playbook_dir}}/generated"
+    dest: "{{playbook_dir}}/config"
 
 - name: Initialize k8s Control Plane
   become_method: sudo
@@ -87,7 +87,7 @@
   become: true
   fetch:
     src: /etc/kubernetes/discovery.yaml
-    dest: "{{playbook_dir}}/generated"
+    dest: "{{playbook_dir}}/config"
 
 - name: Update host facts regarding k8s install
   set_fact:
