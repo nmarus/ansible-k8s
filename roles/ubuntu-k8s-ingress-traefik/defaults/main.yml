@@ -9,4 +9,3 @@ traefik_exposed_http_port: 80
 traefik_exposed_https_port: 443
 traefik_minReplicas: 1
 traefik_maxReplicas: 10
-traefik_vip: 42.42.42.42

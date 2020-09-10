@@ -234,8 +234,10 @@ spec:
       name: websecure
       targetPort: websecure
       protocol: TCP
+{% if traefik_vip is defined %}
   externalIPs:
     - {{traefik_vip}}
+{% endif %}
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute

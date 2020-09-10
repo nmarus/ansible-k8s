@@ -32,6 +32,9 @@
 registry_ip=42.42.42.100
 registry_port=5000
 
+# traefik config (optional)
+traefik_vip: 42.42.42.42
+
 # name of image to use for base vm setups
 vmw_base_image=k8s-ubuntu-base
 
