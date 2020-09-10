@@ -1,8 +1,4 @@
 ---
-- name: Gather meta data for snapshot generation
-  set_fact:
-    vm_name: "{{hostvars[inventory_hostname].ansible_facts.vm_name}}"
-
 - name: Remove VM
   vars:
     datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"

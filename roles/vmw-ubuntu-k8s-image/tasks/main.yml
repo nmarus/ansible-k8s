@@ -11,5 +11,19 @@
 - import_tasks: clean/cloud-init-clean.yml
   delegate_to: "{{vm_ip_address}}"
 
+# wait for host to shut down
+- name: Wait for VM to shut down
+  wait_for:
+    host: "{{vm_ip_address}}"
+    port: 22
+    state: stopped
+    delay: 0
+    sleep: 1
+    timeout: 300
+
+- name: Wait for VM to finalize
+  wait_for:
+    timeout: 15
+
 # convert vm to template
 - import_tasks: clean/convert-to-template.yml

@@ -1,108 +1,25 @@
 ---
-- name: "Generate UUID for instance - {{vm_name}} ({{network_ip_address}})"
-  shell: uuidgen
-  register: uuid_cmd
+- name: Update cached facts for {{network_ip_address}}
+  delegate_to: "{{network_ip_address}}"
+  delegate_facts: true
+  set_fact:
+    cacheable: yes
+    vm_name: "{{vm_name}}"
 
-- set_fact:
-    uuid: "{{uuid_cmd.stdout}}"
-    cloudinit_network: |
-      network:
-        version: 2
-        renderer: networkd
-        ethernets:
-          eth0:
-            dhcp4: no
-            addresses: [{{network_ip_address}}/{{network_subnetprefix}}]
-            gateway4: {{network_gateway}}
-            nameservers:
-              addresses: [{{network_dns_servers}}]
-
-- set_fact:
-    cloudinit_metadata: |
-      {
-        "network": "{{cloudinit_network | b64encode}}",
-        "network.encoding": "base64",
-        "local-hostname": "{{vm_hostname}}",
-        "instance-id": "{{uuid}}"
-      }
-
-- name: "Create VM from Template - {{vm_name}} ({{network_ip_address}})"
-  vmware_guest:
-    name: "{{vm_name}}"
-    hostname: "{{vcenter_hostname}}"
-    username: "{{vcenter_username}}"
-    password: "{{vcenter_password}}"
-    validate_certs: false
-    datastore: "{{vcenter_datastore}}"
-    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
-    cluster: "{{vcenter_cluster if vcenter_cluster is defined else None}}"
-    folder: "/{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}/vm"
-    state: present
-    template: "{{vm_template}}"
-    hardware:
-      mem_reservation:  "{{hw_memory if hw_memory is defined else '4096'}}"
-      memory_mb: "{{hw_memory if hw_memory is defined else '4096'}}"
-      num_cpus: "{{hw_cpus if hw_cpus is defined else '2'}}"
-    disk:
-      - size_gb: "{{hw_disk if hw_disk is defined else '20'}}"
-    networks:
-      - name: "{{vcenter_network}}"
-
-- name: Change network adapter settings of VM - {{vm_name}} ({{network_ip_address}})
-  vmware_guest_network:
-    name: "{{vm_name}}"
-    hostname: "{{vcenter_hostname}}"
-    username: "{{vcenter_username}}"
-    password: "{{vcenter_password}}"
-    validate_certs: false
-    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
-    cluster: "{{vcenter_cluster if vcenter_cluster is defined else None}}"
-    folder: "/{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}/vm"
-    gather_network_info: false
-    networks:
-      - name: "{{vcenter_network}}"
-        state: present
-        label: "Network adapter 1"
-        connected: true
-
-- name: "Set metadata on VM - {{vm_name}} ({{network_ip_address}})"
-  vmware_guest:
-    name: "{{vm_name}}"
-    hostname: "{{vcenter_hostname}}"
-    username: "{{vcenter_username}}"
-    password: "{{vcenter_password}}"
-    validate_certs: false
-    datastore: "{{vcenter_datastore}}"
-    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
-    cluster: "{{vcenter_cluster if vcenter_cluster is defined else None}}"
-    folder: "/{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}/vm"
-    state: present
-    customvalues:
-      - key: guestinfo.metadata
-        value: "{{cloudinit_metadata|to_json|b64encode}}"
-      - key: guestinfo.metadata.encoding
-        value: "base64"
-
-- name: "Power on VM - {{vm_name}} ({{network_ip_address}})"
+- name: Refresh status of deployed Virtual Machines
+  when: "all_vms is not defined"
   local_action:
-    module: vmware_guest
-    name: "{{vm_name}}"
+    module: vmware_vm_info
     hostname: "{{vcenter_hostname}}"
     username: "{{vcenter_username}}"
     password: "{{vcenter_password}}"
     validate_certs: false
-    datastore: "{{vcenter_datastore}}"
-    datacenter: "{{vcenter_datacenter if vcenter_datacenter is defined else 'ha-datacenter'}}"
-    cluster: "{{vcenter_cluster if vcenter_cluster is defined else None}}"
-    state: poweredon
-    wait_for_ip_address: false
+    vm_type: vm
+  register: vm_info
 
-- name: "Waiting for VM to finish boot - {{vm_name}} ({{network_ip_address}})"
-  local_action:
-    module: wait_for
-    host: "{{network_ip_address}}"
-    port: 22
-    state: started
-    delay: 0
-    sleep: 1
-    timeout: 600
+- when: "all_vms is not defined"
+  set_fact:
+    all_vms: "{{vm_info.virtual_machines | map(attribute='guest_name') | list}}"
+
+- when: "vm_name not in all_vms"
+  include_tasks: create-from-template.yml
