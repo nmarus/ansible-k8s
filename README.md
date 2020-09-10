@@ -88,8 +88,9 @@ ansible-playbook provision-k8s.yml --tags k8s-dashboard
 # install portainer web dashboard for k8s (portainer.example.com)
 ansible-playbook provision-k8s.yml --tags k8s-portainer
 
-# install prometheus for metrics
+# install prometheus/grafana for metrics
 ansible-playbook provision-k8s.yml --tags k8s-prometheus
+ansible-playbook provision-k8s.yml --tags k8s-grafana
 ```
 
 ## Admin Setup
