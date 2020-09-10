@@ -2,6 +2,8 @@
 
 # Ansible Kubernetes Playbook for vSphere
 
+![arch](/docs/arch.jpg)
+
 ## Environment Setup
 
 **Generate SSH Keys for Remote Hosts**
@@ -18,7 +20,7 @@
 The configuration file found in `config.ini_sample` should be copied to
 `config.ini` and then updated to match your environment.
 
-_**Note:** The VMWare network that is chosen must have access to the internet._
+_**Note:** The VMWare network that is chosen must have DHCP enabled and access to the internet._
 
 ## Playbook Execution
 
@@ -85,6 +87,9 @@ ansible-playbook provision-k8s.yml --tags k8s-dashboard
 
 # install portainer web dashboard for k8s (portainer.example.com)
 ansible-playbook provision-k8s.yml --tags k8s-portainer
+
+# install prometheus for metrics
+ansible-playbook provision-k8s.yml --tags k8s-prometheus
 ```
 
 ## Admin Setup
