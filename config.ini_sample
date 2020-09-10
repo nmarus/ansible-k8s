@@ -8,7 +8,7 @@
 10.0.0.22
 10.0.0.23
 
-[k8s_haproxy]
+[k8s_loadbalancer_manager]
 10.0.0.30
 
 [k8s_manager]
@@ -16,22 +16,30 @@
 10.0.0.32
 10.0.0.33
 
-[k8s_worker]
+[k8s_loadbalancer_router]
+10.0.0.40
+
+[k8s_router]
 10.0.0.41
 10.0.0.42
+10.0.0.43
+
+[k8s_worker]
+10.0.0.51
 
 [all:vars]
 # name of image to use for base vm setups
 vmw_base_image=k8s-ubuntu-base
 
-# ansible connection config
-ansible_connection=ssh
-ansible_user=ubuntu
-ansible_ssh_private_key_file=.ssh/id_rsa
-ansible_ssh_public_key_file=.ssh/id_rsa.pub
-
 # Password for all accounts created during setup
 default_password=password
+
+# VM/Hostname prefixes (index is appended to end of prefix)
+glusterfs_prefix=k8s-glusterfs-
+etcd_prefix=k8s-etcd-
+haproxy_prefix=k8s-haproxy-
+manager_prefix=k8s-manager-
+worker_prefix=k8s-worker-
 
 # Host Networking config
 network_gateway=10.0.0.1
@@ -45,7 +53,7 @@ network_dns_servers=8.8.8.8,8.8.4.4
 pod_network_cidr=10.244.0.0/16
 service_network_cidr=10.0.0.0/12
 
-# VMWare provisioning vars (required when using VMware platform)
+# VMWare provisioning vars
 vcenter_hostname=10.0.0.5
 vcenter_username=administrator@vsphere.local
 vcenter_password=password
@@ -54,3 +62,9 @@ vcenter_datastore=Datastore 1
 vcenter_datacenter=Datacenter
 vcenter_cluster=Cluster 1
 vcenter_disk_provisioning=thin
+
+# ansible connection config
+ansible_connection=ssh
+ansible_user=ubuntu
+ansible_ssh_private_key_file=.ssh/id_rsa
+ansible_ssh_public_key_file=.ssh/id_rsa.pub
