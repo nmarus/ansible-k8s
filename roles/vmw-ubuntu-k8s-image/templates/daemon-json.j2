@@ -1,0 +1,15 @@
+{
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m"
+  },
+  "storage-driver": "overlay2",
+{% if registry_ip is defined and registry_port is defined %}
+  "insecure-registries" : ["{{registry_ip}}:{{registry_port}}"]
+{% else if insecure_registry is defined %}
+  "insecure-registries" : ["{{insecure_registry}}"]
+{% else %}
+  "insecure-registries" : []
+{% endif %}
+}

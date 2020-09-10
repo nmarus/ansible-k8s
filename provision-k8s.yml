@@ -407,8 +407,8 @@
         cluster_manager_port: 6443
         cluster_ssh_private_key_path: ".ssh/id_rsa"
         # custom docker images
-        docker_image_vas: "42.42.42.100:5000/nmarus/vsphere-autoscaler:v1.18.2"
-        docker_image_cas: "42.42.42.100:5000/nmarus/cluster-autoscaler:v1.18.2"
+        docker_image_vas: "{{registry_internalUri}}/nmarus/vsphere-autoscaler:v1.18.2"
+        docker_image_cas: "{{registry_internalUri}}/nmarus/cluster-autoscaler:v1.18.2"
 
 #
 # Utility Playbooks

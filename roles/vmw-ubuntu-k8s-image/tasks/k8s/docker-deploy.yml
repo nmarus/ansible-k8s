@@ -9,11 +9,9 @@
     group: root
     mode: 0755
 
-- name: Create /etc/docker/daemon.json
-  become: true
-  become_method: sudo
-  copy:
-    src: daemon.json
+- name: Create /etc/docker/daemon.json from template
+  template:
+    src: daemon-json.j2
     dest: /etc/docker/daemon.json
     mode: 0644
 

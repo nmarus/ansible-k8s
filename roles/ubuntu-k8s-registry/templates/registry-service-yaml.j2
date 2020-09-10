@@ -31,8 +31,10 @@ spec:
       protocol: TCP
   selector:
     run: {{registry_services_name}}
+{% if registry_ip is defined %}
   externalIPs:
-    - {{registry_vip}}
+    - {{registry_ip}}
+{% endif %}
 ---
 apiVersion: apps/v1
 kind: Deployment

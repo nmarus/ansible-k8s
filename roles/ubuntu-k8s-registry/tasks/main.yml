@@ -39,13 +39,10 @@
 
 - include_tasks: registry-service.yml
 
-- name: Save fact with internalHost and nodePort for registry service
-  set_fact:
-    registry_nodePort: "{{registry_port}}"
-    registry_internalHost: "{{registry_services_name}}.{{registry_namespace}}"
-    cacheable: yes
-
 - name: Save fact with internalUri for registry service
   set_fact:
-    registry_internalUri: "{{registry_internalHost}}:{{registry_nodePort}}"
+    registry_internalUri: "{{registry_services_name}}.{{registry_namespace}}:{{registry_port}}"
     cacheable: yes
+
+- debug:
+    msg: "Registry is available internal to cluster at '{{registry_internalUri}}' (non tls)"

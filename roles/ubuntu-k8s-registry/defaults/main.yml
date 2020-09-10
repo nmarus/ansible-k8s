@@ -6,7 +6,6 @@ registry_storage_class: glusterfs
 registry_port: 5000
 registry_fqdn: registry.lab.local
 registry_ssl_generate: true
-registry_vip: 42.42.42.100
 ssl_subj_opt: ''
 ssl_key_size: 2048
 ssl_expire_days: 365
