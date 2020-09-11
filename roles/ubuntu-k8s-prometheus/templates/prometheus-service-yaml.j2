@@ -7,7 +7,7 @@ metadata:
 spec:
   resources:
     requests:
-      storage: 1Gi
+      storage: 10Gi
   accessModes:
     - ReadWriteMany
 ---
@@ -32,6 +32,7 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups:
       - extensions
+      - networking.k8s.io   # k8s 1.14+
     resources:
       - ingresses
     verbs: ["get", "list", "watch"]
